@@ -2,10 +2,10 @@
 
 module builderTB;
 
-  localparam int BUTTONS  = 26;
+  localparam int BUTTONS  = 27;
   localparam int DEPTH    = 20;     // requested
   localparam int WIDTH    = 8;
-  localparam int NEWWIDTH = 42;
+  localparam int NEWWIDTH = 44;
 
   reg clock;
   reg reset;
@@ -17,6 +17,7 @@ module builderTB;
   reg eval;
 
   // DUT
+  wire done;
   parent #(
     .buttons(BUTTONS),
     .depth(DEPTH),
@@ -29,7 +30,9 @@ module builderTB;
     .del(del),
     .ptrLeft(ptrLeft),
     .ptrRight(ptrRight),
-    .eval(eval)
+    .eval(eval),
+
+    .parentOut(done)
   );
 
   // ---- Probe wires: DS mem[0..19] (8-bit) ----
@@ -53,9 +56,8 @@ module builderTB;
   wire [WIDTH-1:0] mem17 = uut.mem[17];
   wire [WIDTH-1:0] mem18 = uut.mem[18];
   wire [WIDTH-1:0] mem19 = uut.mem[19];
-  wire [WIDTH-1:0] mem20 = uut.mem[20];
 
-  // ---- Probe wires: Builder memOut[0..19] (42-bit) ----
+  // ---- Probe wires: Builder memOut[0..19] (44-bit) ----
   wire [NEWWIDTH-1:0] memOut0  = uut.memOut[0];
   wire [NEWWIDTH-1:0] memOut1  = uut.memOut[1];
   wire [NEWWIDTH-1:0] memOut2  = uut.memOut[2];
@@ -76,11 +78,33 @@ module builderTB;
   wire [NEWWIDTH-1:0] memOut17 = uut.memOut[17];
   wire [NEWWIDTH-1:0] memOut18 = uut.memOut[18];
   wire [NEWWIDTH-1:0] memOut19 = uut.memOut[19];
-  wire [NEWWIDTH-1:0] memOut20 = uut.memOut[20];
+
+  // ---- Probe wires: postfix memOut[0..19] (42-bit) ----
+  wire [NEWWIDTH-1:0] postfix0  = uut.postfix[0];
+  wire [NEWWIDTH-1:0] postfix1  = uut.postfix[1];
+  wire [NEWWIDTH-1:0] postfix2  = uut.postfix[2];
+  wire [NEWWIDTH-1:0] postfix3  = uut.postfix[3];
+  wire [NEWWIDTH-1:0] postfix4  = uut.postfix[4];
+  wire [NEWWIDTH-1:0] postfix5  = uut.postfix[5];
+  wire [NEWWIDTH-1:0] postfix6  = uut.postfix[6];
+  wire [NEWWIDTH-1:0] postfix7  = uut.postfix[7];
+  wire [NEWWIDTH-1:0] postfix8  = uut.postfix[8];
+  wire [NEWWIDTH-1:0] postfix9  = uut.postfix[9];
+  wire [NEWWIDTH-1:0] postfix10 = uut.postfix[10];
+  wire [NEWWIDTH-1:0] postfix11 = uut.postfix[11];
+  wire [NEWWIDTH-1:0] postfix12 = uut.postfix[12];
+  wire [NEWWIDTH-1:0] postfix13 = uut.postfix[13];
+  wire [NEWWIDTH-1:0] postfix14 = uut.postfix[14];
+  wire [NEWWIDTH-1:0] postfix15 = uut.postfix[15];
+  wire [NEWWIDTH-1:0] postfix16 = uut.postfix[16];
+  wire [NEWWIDTH-1:0] postfix17 = uut.postfix[17];
+  wire [NEWWIDTH-1:0] postfix18 = uut.postfix[18];
+  wire [NEWWIDTH-1:0] postfix19 = uut.postfix[19];
+
   
   wire [$clog2(DEPTH+1)-1:0] newSize = uut.newSize;
 
-  wire done = uut.done;
+  
 
   // clock
   initial clock = 1'b0;
@@ -129,7 +153,7 @@ module builderTB;
     // . : 16
     // * : 12
     // pi: 18
-    // sin:23
+    // sin:24
     // digits: 0..9
 
     press_b_button(14); // (
@@ -143,7 +167,7 @@ module builderTB;
     press_b_button(15); // )
 
     press_b_button(12); // *
-    press_b_button(23); // sin
+    press_b_button(24); // sin
     press_b_button(14); // (
 
     press_b_button(4);  // 4

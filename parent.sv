@@ -41,6 +41,10 @@ module parent #(
     wire [newWidth-1:0] memOut [depth-1:0];
     wire done; //pulse
 
+    ///infixToPostfix ->  postfix evaluator wires
+    wire [$clog2(depth+1)-1:0] postfixSize;
+    wire [newWidth-1:0] postfix [depth-1:0];
+
 
 
     // keyboard instance
@@ -110,8 +114,10 @@ module parent #(
         .infixSize(newSize), // recieves the count of the no of elements in the stack
         .infix(memOut),
 
-        .postfixSize(),
-        .postfix(),
+        
+        .postfix(postfix),
+        .postfixSize(postfixSize),
+        
         .done(parentOut)
 
     );
