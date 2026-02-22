@@ -11,7 +11,9 @@ module ds
         input insert, del,
         input ptrLeft, ptrRight,
         
-        output reg [width-1 : 0] mem [depth-1 : 0]
+        output reg [width-1 : 0] mem [depth-1 : 0],
+        output [$clog2(depth+1)-1:0] sizeOut
+
     );
     
     // memory
@@ -21,6 +23,10 @@ module ds
     reg delPrevState      = 0;
     reg ptrLeftPrevState  = 0;
     reg ptrRightPrevState = 0;
+
+    reg [$clog2(depth+1)-1:0] ptr  = 0;
+    reg [$clog2(depth+1)-1:0] size = 0;
+
     
     // wires 
     wire doInsert   = insert  && !insertPrevState;
@@ -28,8 +34,11 @@ module ds
     wire doPtrLeft  = ptrLeft && !ptrLeftPrevState;
     wire doPtrRight = ptrRight && !ptrRightPrevState;
     
-    reg [$clog2(depth)-1:0] size = 0;
-    reg [$clog2(depth)-1:0] ptr  = 0;
+
+    assign sizeOut = size;
+
+    
+
     
     integer i;
 

@@ -2,12 +2,13 @@
 
 module parent #(
     parameter depth = 20,
-    parameter width = 8
+    parameter width = 8,
+    parameter buttons = 26
 )(
     input clock,
     input reset,
 
-    input [15:0] b,
+   input  [buttons - 1 : 0] b,
     input del,
     input ptrLeft,
     input ptrRight,
