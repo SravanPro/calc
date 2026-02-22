@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 
+
 module numBuilder #(
     parameter depth = 10,
     parameter width = 8,
@@ -39,12 +40,20 @@ module numBuilder #(
     integer k;
 
     // helpers
-    wire isDigit = (memIn[i][7:4] == 4'h0);
-    wire isDot = (memIn[i] == 8'hDD);
 
-    wire isConst = (memIn[i][7:4] == 4'hC);
-    wire isConstE = (memIn[i] == 8'hC0);
-    wire isConstPi = (memIn[i] == 8'hC1);
+    //guard: only read memIn[i] when i is in range of the memIn's size
+    wire i_valid = (i < size) && (i < depth);
+
+    //basically a validified memIn[i]
+    wire [width-1:0] tok = i_valid ? memIn[i] : '0;
+
+    wire isDigit = i_valid && (tok[7:4] == 4'h0);
+    wire isDot   = i_valid && (tok      == 8'hDD);
+
+    wire isConst   = i_valid && (tok[7:4] == 4'hC);
+    wire isConstE  = i_valid && (tok      == 8'hC0);
+    wire isConstPi = i_valid && (tok      == 8'hC1);
+
 
     always @(posedge clock) begin
         if (reset) begin
@@ -72,7 +81,7 @@ module numBuilder #(
             done <= 1'b0;
             running_prev <= running;
             if (running_prev && !running) begin
-            done <= 1'b1;
+                done <= 1'b1;
             end
 
             evalPrevState <= eval;
@@ -97,7 +106,8 @@ module numBuilder #(
             else if (running) begin
 
                 // End of input: if a number is pending, flush it, then stop.
-                if (i >= size) begin
+                if ((i >= size) || (i >= depth)) begin
+
                     if (building && (newSize < depth)) begin
                         memOut[newSize] <= {sign, mantissa, exp};
                         newSize <= newSize + 1'b1;
@@ -118,7 +128,8 @@ module numBuilder #(
 
                     // Case 1: if the toke n is digit
                     if (isDigit) begin
-                        mantissa <= (mantissa * 10) + memIn[i];   
+                        mantissa <= (mantissa * 10) + tok;
+ 
                         if (seenDot) exp <= exp - 1'b1;
 
                         building <= 1'b1;
@@ -145,10 +156,10 @@ module numBuilder #(
                             if ((newSize + 1) < depth) begin //then flushing constant
 
                                 if(isConstE) begin
-                                    memOut[newSize + 1] <=  {1'b0, 34'd27182818285, 7'sd-10};
+                                    memOut[newSize + 1] <=  {1'b0, 34'd2718281828, -7'sd9};
                                 end
                                 else if(isConstPi) begin
-                                    memOut[newSize + 1] <= {1'b0, 34'd31415926536, 7'sd-10};
+                                    memOut[newSize + 1] <= {1'b0, 34'd3141592653, -7'sd9};
                                 end
 
                             end
@@ -169,10 +180,10 @@ module numBuilder #(
                             // if we were NOT in hte middle of building anumber, and if we hit a constanat:
                             if (newSize < depth) begin
                                 if(isConstE) begin
-                                    memOut[newSize + 1] <=  {1'b0, 34'd27182818285, 7'sd-10};
+                                    memOut[newSize] <=  {1'b0, 34'd2718281828, -7'sd9};
                                 end
                                 else if(isConstPi) begin
-                                    memOut[newSize + 1] <= {1'b0, 34'd31415926536, 7'sd-10};
+                                    memOut[newSize] <= {1'b0, 34'd3141592653, -7'sd9};
                                 end
                             end
                             newSize <= newSize + 1'b1;
@@ -190,7 +201,7 @@ module numBuilder #(
                                 memOut[newSize] <= {sign, mantissa, exp};
                             end
                             if ((newSize + 1) < depth) begin
-                                memOut[newSize + 1] <= {34'b0, memIn[i]}; // operator token padded
+                                memOut[newSize + 1] <= {34'b0, tok}; // operator token padded
                             end
 
                             newSize <= newSize + 2; //+2 coz number, and operator, both are being flushed
@@ -207,7 +218,7 @@ module numBuilder #(
                         else begin
                             // if we were NOT in hte middle of building anumber, and if we hit an operator:
                             if (newSize < depth) begin
-                                memOut[newSize] <= {34'b0, memIn[i]};
+                                memOut[newSize] <= {34'b0, tok};
                             end
                             newSize <= newSize + 1'b1;
                             i <= i + 1'b1;

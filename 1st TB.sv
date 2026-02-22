@@ -1,0 +1,146 @@
+`timescale 1ns/1ps
+
+module builderTB;
+
+  // ----- parameters for this test -----
+  localparam int BUTTONS  = 26;
+  localparam int DEPTH    = 12;     // as requested
+  localparam int WIDTH    = 8;
+  localparam int NEWWIDTH = 42;
+
+  // ----- DUT inputs -----
+  reg clock;
+  reg reset;
+
+  reg [BUTTONS-1:0] b;
+  reg del;
+  reg ptrLeft;
+  reg ptrRight;
+  reg eval;
+
+  // ----- Instantiate parent -----
+  parent #(
+    .buttons(BUTTONS),
+    .depth(DEPTH),
+    .width(WIDTH),
+    .newWidth(NEWWIDTH)
+  ) uut (
+    .clock(clock),
+    .reset(reset),
+    .b(b),
+    .del(del),
+    .ptrLeft(ptrLeft),
+    .ptrRight(ptrRight),
+    .eval(eval)
+  );
+
+  // ----- Make 12+12 "probe wires" for DS mem and Builder memOut -----
+  // dataStructure mem (8-bit each)
+  wire [WIDTH-1:0] mem0  = uut.mem[0];
+  wire [WIDTH-1:0] mem1  = uut.mem[1];
+  wire [WIDTH-1:0] mem2  = uut.mem[2];
+  wire [WIDTH-1:0] mem3  = uut.mem[3];
+  wire [WIDTH-1:0] mem4  = uut.mem[4];
+  wire [WIDTH-1:0] mem5  = uut.mem[5];
+  wire [WIDTH-1:0] mem6  = uut.mem[6];
+  wire [WIDTH-1:0] mem7  = uut.mem[7];
+  wire [WIDTH-1:0] mem8  = uut.mem[8];
+  wire [WIDTH-1:0] mem9  = uut.mem[9];
+  wire [WIDTH-1:0] mem10 = uut.mem[10];
+  wire [WIDTH-1:0] mem11 = uut.mem[11];
+
+  // numBuilder memOut (42-bit each)
+  wire [NEWWIDTH-1:0] memOut0  = uut.memOut[0];
+  wire [NEWWIDTH-1:0] memOut1  = uut.memOut[1];
+  wire [NEWWIDTH-1:0] memOut2  = uut.memOut[2];
+  wire [NEWWIDTH-1:0] memOut3  = uut.memOut[3];
+  wire [NEWWIDTH-1:0] memOut4  = uut.memOut[4];
+  wire [NEWWIDTH-1:0] memOut5  = uut.memOut[5];
+  wire [NEWWIDTH-1:0] memOut6  = uut.memOut[6];
+  wire [NEWWIDTH-1:0] memOut7  = uut.memOut[7];
+  wire [NEWWIDTH-1:0] memOut8  = uut.memOut[8];
+  wire [NEWWIDTH-1:0] memOut9  = uut.memOut[9];
+  wire [NEWWIDTH-1:0] memOut10 = uut.memOut[10];
+  wire [NEWWIDTH-1:0] memOut11 = uut.memOut[11];
+
+  // handy probes
+  wire done = uut.done;
+
+  // ----- clock -----
+  initial clock = 1'b0;
+  always #5 clock = ~clock;  // 100MHz
+
+  // ----- tasks -----
+  task automatic press_b_button(input int idx);
+    begin
+      // press for 2 clocks
+      b = '0;
+      b[idx] = 1'b1;
+      repeat (2) @(posedge clock);
+
+      // release for 2 clocks
+      b = '0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  task automatic press_eval;
+    begin
+      eval = 1'b1;
+      repeat (2) @(posedge clock);
+      eval = 1'b0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  // ----- stimulus -----
+  initial begin
+    // init inputs
+    b = '0;
+    del = 1'b0;
+    ptrLeft = 1'b0;
+    ptrRight = 1'b0;
+    eval = 1'b0;
+
+    // reset
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // Expression: e - 2 . 3 + 4 . 2 2   (10 tokens)
+    //
+    // Using your keyboard mapping:
+    // 17 = e
+    // 11 = sub
+    // 2  = digit 2
+    // 16 = decimal point
+    // 3  = digit 3
+    // 10 = add
+    // 4  = digit 4
+    // 16 = decimal point
+    // 2  = digit 2
+    // 2  = digit 2
+
+    press_b_button(17); // e
+    press_b_button(11); // -
+    press_b_button(2);  // 2
+    press_b_button(16); // .
+    press_b_button(3);  // 3
+    press_b_button(10); // +
+    press_b_button(4);  // 4
+    press_b_button(16); // .
+    press_b_button(2);  // 2
+    press_b_button(2);  // 2
+
+    // Now start numBuilder
+    press_eval();
+
+    // wait for done pulse
+    wait (done === 1'b1);
+    @(posedge clock);
+
+    $finish;
+  end
+
+endmodule

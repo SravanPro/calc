@@ -1,0 +1,164 @@
+`timescale 1ns/1ps
+
+module builderTB;
+
+  localparam int BUTTONS  = 26;
+  localparam int DEPTH    = 20;     // requested
+  localparam int WIDTH    = 8;
+  localparam int NEWWIDTH = 42;
+
+  reg clock;
+  reg reset;
+
+  reg [BUTTONS-1:0] b;
+  reg del;
+  reg ptrLeft;
+  reg ptrRight;
+  reg eval;
+
+  // DUT
+  parent #(
+    .buttons(BUTTONS),
+    .depth(DEPTH),
+    .width(WIDTH),
+    .newWidth(NEWWIDTH)
+  ) uut (
+    .clock(clock),
+    .reset(reset),
+    .b(b),
+    .del(del),
+    .ptrLeft(ptrLeft),
+    .ptrRight(ptrRight),
+    .eval(eval)
+  );
+
+  // ---- Probe wires: DS mem[0..19] (8-bit) ----
+  wire [WIDTH-1:0] mem0  = uut.mem[0];
+  wire [WIDTH-1:0] mem1  = uut.mem[1];
+  wire [WIDTH-1:0] mem2  = uut.mem[2];
+  wire [WIDTH-1:0] mem3  = uut.mem[3];
+  wire [WIDTH-1:0] mem4  = uut.mem[4];
+  wire [WIDTH-1:0] mem5  = uut.mem[5];
+  wire [WIDTH-1:0] mem6  = uut.mem[6];
+  wire [WIDTH-1:0] mem7  = uut.mem[7];
+  wire [WIDTH-1:0] mem8  = uut.mem[8];
+  wire [WIDTH-1:0] mem9  = uut.mem[9];
+  wire [WIDTH-1:0] mem10 = uut.mem[10];
+  wire [WIDTH-1:0] mem11 = uut.mem[11];
+  wire [WIDTH-1:0] mem12 = uut.mem[12];
+  wire [WIDTH-1:0] mem13 = uut.mem[13];
+  wire [WIDTH-1:0] mem14 = uut.mem[14];
+  wire [WIDTH-1:0] mem15 = uut.mem[15];
+  wire [WIDTH-1:0] mem16 = uut.mem[16];
+  wire [WIDTH-1:0] mem17 = uut.mem[17];
+  wire [WIDTH-1:0] mem18 = uut.mem[18];
+  wire [WIDTH-1:0] mem19 = uut.mem[19];
+
+  // ---- Probe wires: Builder memOut[0..19] (42-bit) ----
+  wire [NEWWIDTH-1:0] memOut0  = uut.memOut[0];
+  wire [NEWWIDTH-1:0] memOut1  = uut.memOut[1];
+  wire [NEWWIDTH-1:0] memOut2  = uut.memOut[2];
+  wire [NEWWIDTH-1:0] memOut3  = uut.memOut[3];
+  wire [NEWWIDTH-1:0] memOut4  = uut.memOut[4];
+  wire [NEWWIDTH-1:0] memOut5  = uut.memOut[5];
+  wire [NEWWIDTH-1:0] memOut6  = uut.memOut[6];
+  wire [NEWWIDTH-1:0] memOut7  = uut.memOut[7];
+  wire [NEWWIDTH-1:0] memOut8  = uut.memOut[8];
+  wire [NEWWIDTH-1:0] memOut9  = uut.memOut[9];
+  wire [NEWWIDTH-1:0] memOut10 = uut.memOut[10];
+  wire [NEWWIDTH-1:0] memOut11 = uut.memOut[11];
+  wire [NEWWIDTH-1:0] memOut12 = uut.memOut[12];
+  wire [NEWWIDTH-1:0] memOut13 = uut.memOut[13];
+  wire [NEWWIDTH-1:0] memOut14 = uut.memOut[14];
+  wire [NEWWIDTH-1:0] memOut15 = uut.memOut[15];
+  wire [NEWWIDTH-1:0] memOut16 = uut.memOut[16];
+  wire [NEWWIDTH-1:0] memOut17 = uut.memOut[17];
+  wire [NEWWIDTH-1:0] memOut18 = uut.memOut[18];
+  wire [NEWWIDTH-1:0] memOut19 = uut.memOut[19];
+
+  wire done = uut.done;
+
+  // clock
+  initial clock = 1'b0;
+  always #5 clock = ~clock;
+
+  // press helpers (same style as before: press 2 clocks, release 2 clocks)
+  task automatic press_b_button(input int idx);
+    begin
+      b = '0;
+      b[idx] = 1'b1;
+      repeat (2) @(posedge clock);
+
+      b = '0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  task automatic press_eval;
+    begin
+      eval = 1'b1;
+      repeat (2) @(posedge clock);
+      eval = 1'b0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  // stimulus
+  initial begin
+    b = '0;
+    del = 1'b0;
+    ptrLeft = 1'b0;
+    ptrRight = 1'b0;
+    eval = 1'b0;
+
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // Expression tokens (19):
+    // ( 83.2341 ) * sin( 4.32 * pi )
+    //
+    // button indices:
+    // ( : 14
+    // ) : 15
+    // . : 16
+    // * : 12
+    // pi: 18
+    // sin:23
+    // digits: 0..9
+
+    press_b_button(14); // (
+    press_b_button(8);  // 8
+    press_b_button(3);  // 3
+    press_b_button(16); // .
+    press_b_button(2);  // 2
+    press_b_button(3);  // 3
+    press_b_button(4);  // 4
+    press_b_button(1);  // 1
+    press_b_button(15); // )
+
+    press_b_button(12); // *
+    press_b_button(23); // sin
+    press_b_button(14); // (
+
+    press_b_button(4);  // 4
+    press_b_button(16); // .
+    press_b_button(3);  // 3
+    press_b_button(2);  // 2
+
+    press_b_button(12); // *
+    press_b_button(18); // pi
+    press_b_button(15); // )
+
+    // run numBuilder
+    press_eval();
+
+    // wait for done
+    wait (done === 1'b1);
+    @(posedge clock);
+
+    $finish;
+  end
+
+endmodule
