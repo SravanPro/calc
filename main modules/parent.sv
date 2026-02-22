@@ -21,8 +21,7 @@ module parent #(
     input eval,
     
     //postfix evaluator -> parent output
-    output [newWidth-1:0] answer,
-    output done, //pulse
+
     output sclk,
     output mosi,
     output cs
