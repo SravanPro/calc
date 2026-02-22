@@ -11,7 +11,10 @@ module parent #(
     input del,
     input ptrLeft,
     input ptrRight,
-    input eval
+    input eval,
+    
+    
+    output wire [width-1 : 0] mem [depth-1 : 0]
 );
 
     // keyboard → ds wires
@@ -52,7 +55,9 @@ module parent #(
         .insert(insert_pulse),
         .del(del_pulse),
         .ptrLeft(ptrLeft_pulse),
-        .ptrRight(ptrRight_pulse)
+        .ptrRight(ptrRight_pulse),
+        
+        .mem(mem)
     );
 
 endmodule

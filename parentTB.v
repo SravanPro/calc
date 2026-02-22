@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-module parentTB;
+module parentTB    #(
+        parameter depth = 5,
+        parameter width = 8
+     ) ;
 
     // clock + reset
     reg clock = 0;
@@ -12,6 +15,9 @@ module parentTB;
     reg ptrLeft;
     reg ptrRight;
     reg eval;
+    
+    //output: memory
+    wire [width-1 : 0] mem [depth-1 : 0];
     
     
 
@@ -29,15 +35,13 @@ module parentTB;
         .del(del),
         .ptrLeft(ptrLeft),
         .ptrRight(ptrRight),
-        .eval(eval)
+        .eval(eval),
+        .mem(mem)
     );
     
-        wire [7:0] b0, b1, b2, b3, b4;
-        assign b0 = parentDut.ds.mem[0];
-        assign b1 = parentDut.ds.mem[1];
-        assign b2 = parentDut.ds.mem[2];
-        assign b3 = parentDut.ds.mem[3];
-        assign b4 = parentDut.ds.mem[4];
+    
+    
+
 
 
 
