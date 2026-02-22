@@ -13,7 +13,7 @@ module parent #(
     parameter debounceTime  = 10            // milliseconds
     
 )(
-    input clock, reset,
+    input clockIn, reset,
     input [4:0] encodedRawInput,
     
     //postfix evaluator -> parent output
@@ -25,6 +25,9 @@ module parent #(
     output [3:0] testBits
     
 );
+
+
+    
 
     wire [buttons-1:0] b;
     wire del;
@@ -56,7 +59,7 @@ assign b[9] = decodedOutput[9];
 assign b[0]  = decodedOutput[10];
 assign b[19] = decodedOutput[11];
 
-// “12 to 18, 13 to 16, 14 10, 15 11, 16 17, 17 12, 18 13, 19 14, 20 15, 21 23”
+// "12 to 18, 13 to 16, 14 10, 15 11, 16 17, 17 12, 18 13, 19 14, 20 15, 21 23"
 assign b[18] = decodedOutput[12];
 assign b[16] = decodedOutput[13];
 assign b[10] = decodedOutput[14];
@@ -68,17 +71,17 @@ assign b[14] = decodedOutput[19];
 assign b[15] = decodedOutput[20];
 assign b[23] = decodedOutput[21];
 
-// “22 ptrLeft, 23 ptrRight”
+// "22 ptrLeft, 23 ptrRight"
 assign ptrLeft  = decodedOutput[22];
 assign ptrRight = decodedOutput[23];
 
-// “24 22, 25 24, 26 25, 27 26”
+// "24 22, 25 24, 26 25, 27 26"
 assign b[22] = decodedOutput[24];
 assign b[24] = decodedOutput[25];
 assign b[25] = decodedOutput[26];
 assign b[26] = decodedOutput[27];
 
-// “28 jump, 29 del, 30 eval, 31 reset”
+// "28 jump, 29 del, 30 eval, 31 reset"
 assign jump  = decodedOutput[28];
 assign del   = decodedOutput[29];
 assign eval  = decodedOutput[30];
@@ -87,7 +90,7 @@ assign b[20] = 1'b0;
 assign b[21] = 1'b0;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+    wire clock;
 
 
     // keyboard → ds wires
@@ -120,14 +123,19 @@ assign b[21] = 1'b0;
     assign testBits = answer[15:12];
 
 
-
+    //clock divider instance
+    clockDivider myClockDivider (
+        .clockIn(clockIn),
+        .reset(reset),
+        .clock(clock)
+    );
     //debouncer Instance
     debouncer #(
         .width(5),
         .freq(freq),
         .debounceTime(debounceTime)
     ) deb(
-        .clock(clock),
+        .clock(clockIn),
         .reset(reset),
         .raw(encodedRawInput),
         .debounced(encodedDebouncedInput)

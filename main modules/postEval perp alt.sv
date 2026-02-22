@@ -371,16 +371,14 @@ module postEval #(
 
             stk <= 0;
             pof <= 0;
-
-            answer <= 0;  
+            
+            answer <= 0;
             done <= 0;
             convPrevState <= 1'b0;
 
             for (k = 0; k < depth; k = k + 1) begin
                 stack[k] <= 0;
             end
-
-            
 
             op <= 0;
 

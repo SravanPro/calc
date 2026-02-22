@@ -1,0 +1,199 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ================= CONFIGURATION =================
+#define LCD_ADDRESS     0x27 
+#define LCD_COLS        16
+#define LCD_ROWS        2
+#define PACKET_SIZE     24 
+
+// ================= CUSTOM POINTER =================
+byte pointerChar[8] = {
+    B00100,
+    B01110,
+    B11111,
+    B00100,
+    B00100,
+    B00000,
+    B00000,
+    B00000
+};
+
+// ================= MAPPINGS =================
+char mapByteToChar(byte b) {
+    if (b >= 0x00 && b <= 0x09) return b + '0'; 
+    switch (b) {
+        case 0x2A: return '+'; case 0x2B: return '-'; 
+        case 0x2C: return '*'; case 0x2D: return '/'; 
+        case 0x1E: return '('; case 0x1F: return ')'; 
+        case 0xDD: return '.'; case 0xDC: return ','; 
+        case 0xC0: return 'e'; case 0xC1: return 0xF7;
+        case 0xF0: return 'E';
+        case 0xF1: return 'N';
+        case 0xF2: return '^'; 
+        case 0xF3: return 'L';
+        case 0xF4: return 'S';
+        case 0xF5: return 'C';
+        case 0xF6: return 'T';
+        case 0xF7: return 'c'; 
+        case 0xF8: return 's'; 
+        case 0xF9: return 't'; 
+        case 0xFA: return 'A'; case 0xFB: return 'B'; case 0xFC: return 'G'; 
+        default:   return '?'; 
+    }
+}
+
+// ================= GLOBALS =================
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
+volatile byte rxBuffer[PACKET_SIZE];
+volatile byte rxIndex = 0;
+volatile bool packetReady = false;
+
+// ================= SETUP =================
+void setup() {
+    lcd.begin(); 
+    lcd.backlight();
+    lcd.createChar(0, pointerChar);
+
+    lcd.setCursor(0, 0);
+    lcd.print("Ready...");
+
+    pinMode(MISO, OUTPUT); 
+    pinMode(MOSI, INPUT);  
+    pinMode(SCK, INPUT);   
+    pinMode(SS, INPUT);
+
+    SPCR |= _BV(SPE) | _BV(SPIE); 
+
+    noInterrupts();
+    PCICR |= (1 << PCIE0);    
+    PCMSK0 |= (1 << PCINT2);  
+    interrupts();
+}
+
+// ================= INTERRUPTS =================
+ISR (SPI_STC_vect) {
+    byte c = SPDR; 
+    if (rxIndex < PACKET_SIZE) rxBuffer[rxIndex++] = c;
+    if (rxIndex >= PACKET_SIZE) packetReady = true;
+}
+
+ISR (PCINT0_vect) {
+    if (digitalRead(10) == HIGH) rxIndex = 0; 
+}
+
+// ================= HELPER =================
+int ullToString(uint64_t value, char* buf) {
+    if (value == 0) {
+        buf[0] = '0';
+        buf[1] = '\0';
+        return 1;
+    }
+    
+    int i = 0;
+    while (value > 0) {
+        buf[i++] = (value % 10) + '0';
+        value /= 10;
+    }
+    buf[i] = '\0';
+
+    for (int j = 0; j < i / 2; j++) {
+        char temp = buf[j];
+        buf[j] = buf[i - 1 - j];
+        buf[i - 1 - j] = temp;
+    }
+    return i;
+}
+
+// ================= LOOP =================
+unsigned long lastUpdate = 0; 
+unsigned long lastBlink = 0;
+bool blinkState = false;
+
+void loop() {
+    // blink toggle
+    if (millis() - lastBlink > 400) {
+        blinkState = !blinkState;
+        lastBlink = millis();
+    }
+
+    if (packetReady && (millis() - lastUpdate > 100)) {
+        lastUpdate = millis();
+        
+        byte localBuf[PACKET_SIZE];
+        noInterrupts(); 
+        memcpy(localBuf, (const void*)rxBuffer, PACKET_SIZE);
+        packetReady = false; 
+        interrupts(); 
+
+        // ===== READ SIZE AND POINTER =====
+        byte sizeVal = localBuf[16];
+        byte ptrVal  = localBuf[17];
+
+        if (ptrVal >= 16) ptrVal -= 16; // page correction
+
+        // --- ROW 0: INPUT EXPRESSION WITH INLINE BLINKING CURSOR ---
+        lcd.setCursor(0, 0);
+        for (int i = 0; i < 16; i++) {
+            if (i < sizeVal) {
+                if (i == ptrVal && blinkState) lcd.write(byte(0)); // blinking cursor
+                else lcd.print(mapByteToChar(localBuf[i]));
+            } else lcd.print(" ");
+        }
+
+        // --- RESULT PARSING ---
+        bool signBit = (localBuf[18] >> 1) & 0x01;
+        
+        uint64_t mantissa = 0;
+        mantissa |= ((uint64_t)(localBuf[18] & 0x01) << 33);
+        mantissa |= ((uint64_t)localBuf[19] << 25);
+        mantissa |= ((uint64_t)localBuf[20] << 17);
+        mantissa |= ((uint64_t)localBuf[21] << 9);
+        mantissa |= ((uint64_t)localBuf[22] << 1);
+        mantissa |= ((uint64_t)(localBuf[23] >> 7) & 0x01);
+
+        int8_t exponent = localBuf[23] & 0x7F;
+        if (exponent & 0x40) exponent |= 0x80; 
+
+        char mantStr[24];
+        int len = ullToString(mantissa, mantStr);
+        
+        int dotPos = len + exponent;
+
+        char finalStr[32];
+        int p = 0;
+
+        finalStr[p++] = signBit ? '-' : '+';
+
+        if (dotPos <= 0) {
+            finalStr[p++] = '0';
+            finalStr[p++] = '.';
+            while (dotPos < 0) {
+                finalStr[p++] = '0';
+                dotPos++;
+            }
+            for (int k=0; k<len; k++) finalStr[p++] = mantStr[k];
+        } 
+        else if (dotPos >= len) {
+            for (int k=0; k<len; k++) finalStr[p++] = mantStr[k];
+            while (dotPos > len) {
+                finalStr[p++] = '0';
+                len++;
+            }
+        } 
+        else {
+            for (int k=0; k<len; k++) {
+                if (k == dotPos) finalStr[p++] = '.';
+                finalStr[p++] = mantStr[k];
+            }
+        }
+        finalStr[p] = '\0';
+
+        // --- ROW 1: DISPLAY RESULT ---
+        lcd.setCursor(0, 1);
+        lcd.print("                "); // clear row first
+        lcd.setCursor(0, 1);
+        lcd.print(finalStr);
+    }
+}
