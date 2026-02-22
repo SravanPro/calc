@@ -84,6 +84,7 @@ module inToPost #(
     wire doConv = conv && !convPrevState;
 
     
+            integer k;
 
     
 
@@ -98,6 +99,12 @@ module inToPost #(
             pof   <= 0;
             done  <= 0;
             convPrevState <= 1'b0;
+
+            for (k = 0; k < depth; k = k + 1) begin
+            postfix[k] <= '0;
+            stack[k]   <= '0;
+            end
+
 
         end
 
@@ -226,6 +233,7 @@ module inToPost #(
                         stack[stk] <= infix[inf];
                         stk <= stk+1;
                         inf <= inf+1;
+                        state <= S_READ; //added this after sim bug
                     end
                 end
 
