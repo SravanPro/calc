@@ -1,0 +1,139 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ================= CONFIGURATION =================
+#define LCD_ADDRESS     0x27 
+#define LCD_COLS        16
+#define LCD_ROWS        2
+#define PACKET_SIZE     24 
+
+// ================= MAPPINGS =================
+char mapByteToChar(byte b) {
+    if (b >= 0x00 && b <= 0x09) return b + '0'; 
+    switch (b) {
+        case 0x2A: return '+'; 
+        case 0x2B: return '-'; 
+        case 0x2C: return '*'; 
+        case 0x2D: return '/'; 
+        case 0x1E: return '('; 
+        case 0x1F: return ')'; 
+        case 0xDD: return '.'; 
+        case 0xDC: return ','; 
+        case 0xC0: return 'e'; 
+        case 0xC1: return 0xF7; 
+        case 0xF0: return 'E'; 
+        case 0xF1: return 'N'; 
+        case 0xF2: return '^'; 
+        case 0xF3: return 'L'; 
+        case 0xF4: return 'S'; 
+        case 0xF5: return 'C'; 
+        case 0xF6: return 'T'; 
+        case 0xF7: return 'c'; 
+        case 0xF8: return 's'; 
+        case 0xF9: return 't'; 
+        case 0xFA: return 'A'; 
+        case 0xFB: return 'B'; 
+        case 0xFC: return 'G'; 
+        default:   return '?'; 
+    }
+}
+
+// ================= GLOBALS =================
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
+volatile byte rxBuffer[PACKET_SIZE];
+volatile byte rxIndex = 0;
+volatile bool packetReady = false;
+
+// ================= SETUP =================
+void setup() {
+    lcd.begin(); 
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Syncing...");
+
+    // SPI Pin Setup
+    pinMode(MISO, OUTPUT); 
+    pinMode(MOSI, INPUT);  
+    pinMode(SCK, INPUT);   
+    pinMode(SS, INPUT);    // Pin 10
+
+    // 1. Enable SPI in Slave Mode
+    SPCR |= _BV(SPE) | _BV(SPIE); 
+
+    // 2. ENABLE "HARD SYNC" INTERRUPT ON PIN 10 (SS)
+    // This connects an interrupt to Pin 10 specifically.
+    // When Pin 10 changes state, it fires ISR(PCINT0_vect)
+    noInterrupts();
+    PCICR |= (1 << PCIE0);    // Enable Port B Interrupts (Pins 8-13)
+    PCMSK0 |= (1 << PCINT2);  // Enable Interrupt specifically for Pin 10 (PB2)
+    interrupts();
+}
+
+// ================= INTERRUPTS =================
+
+// 1. SPI Data Received Interrupt (Grabs the byte)
+ISR (SPI_STC_vect) {
+    byte c = SPDR; 
+    if (rxIndex < PACKET_SIZE) {
+        rxBuffer[rxIndex++] = c;
+    }
+    if (rxIndex >= PACKET_SIZE) {
+        packetReady = true;
+    }
+}
+
+// 2. PIN 10 CHANGE INTERRUPT (The Anti-Flicker Guard)
+// This fires instantly when CS goes HIGH or LOW.
+ISR (PCINT0_vect) {
+    // Check if Pin 10 is HIGH (FPGA finished talking)
+    if (digitalRead(10) == HIGH) {
+        // FORCE RESET the index. 
+        // This ensures the next byte received is ALWAYS Byte 0.
+        rxIndex = 0; 
+    }
+}
+
+// ================= LOOP =================
+// Timer to prevent LCD lag
+unsigned long lastUpdate = 0; 
+
+void loop() {
+    // Only update screen every 100ms to allow smooth reading
+    // This allows the Arduino to ignore packets while it's "busy" without losing sync
+    if (packetReady && (millis() - lastUpdate > 100)) {
+        
+        lastUpdate = millis();
+        
+        // Safely copy data
+        byte localBuf[PACKET_SIZE];
+        noInterrupts(); 
+        memcpy(localBuf, (const void*)rxBuffer, PACKET_SIZE);
+        packetReady = false; 
+        interrupts(); 
+
+        byte sizeVal = localBuf[16];
+        
+        // ROW 1
+        lcd.setCursor(0, 0);
+        for (int i = 0; i < 16; i++) {
+            if (i < sizeVal) {
+                lcd.print(mapByteToChar(localBuf[i]));
+            } else {
+                lcd.print(" ");
+            }
+        }
+
+        // ROW 2
+        unsigned int lower16 = (localBuf[22] << 8) | localBuf[23];
+        lcd.setCursor(0, 1);
+        lcd.print("Ans:");
+        if (lower16 < 0x1000) lcd.print("0");
+        if (lower16 < 0x100)  lcd.print("0");
+        if (lower16 < 0x10)   lcd.print("0");
+        lcd.print(lower16, HEX);
+        lcd.print("        "); 
+    }
+    // If we have a packet but it's too soon to update, 
+    // we just let the ISR overwrite the buffer with new fresh data.
+}

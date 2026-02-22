@@ -1,0 +1,39 @@
+Here is the complete wiring guide.
+
+**⚠️ CRITICAL WARNING:**
+**Connect the GROUND (GND) of your FPGA, Arduino, and LCD together.**
+If you do not have a common ground, the signals will float, and you will get garbage data or no data at all.
+
+### 1. FPGA  Arduino (SPI Connection)
+
+*The FPGA sends data, the Arduino receives it.*
+
+| FPGA Pin Name | Arduino Pin (Uno/Nano) | Function |
+| --- | --- | --- |
+| **sclk** | **Pin 13** | Clock (SCK) |
+| **mosi** | **Pin 11** | Master Out Slave In (Data) |
+| **cs** | **Pin 10** | Chip/Slave Select (SS) |
+| **GND** | **GND** | **REQUIRED** (Common Ground) |
+
+*Note: Do **NOT** connect anything to Arduino Pin 12 (MISO). Your FPGA interface does not listen for data from the Arduino, so we leave this disconnected to avoid sending 5V into your 3.3V FPGA.*
+
+### 2. LCD Display  Arduino (I2C Connection)
+
+*Most I2C LCDs have a "backpack" module with 4 pins.*
+
+| LCD Pin Name | Arduino Pin (Uno/Nano) | Function |
+| --- | --- | --- |
+| **GND** | **GND** | Ground |
+| **VCC** | **5V** | Power (Do not use 3.3V) |
+| **SDA** | **Pin A4** | Data Line |
+| **SCL** | **Pin A5** | Clock Line |
+
+### Summary Checklist
+
+1. [ ] **FPGA `sclk**` connected to **Arduino 13**
+2. [ ] **FPGA `mosi**` connected to **Arduino 11**
+3. [ ] **FPGA `cs**` connected to **Arduino 10**
+4. [ ] **LCD `SDA**` connected to **Arduino A4**
+5. [ ] **LCD `SCL**` connected to **Arduino A5**
+6. [ ] **LCD `VCC**` connected to **Arduino 5V**
+7. [ ] **ALL GROUNDS CONNECTED** (FPGA GND + Arduino GND + LCD GND)

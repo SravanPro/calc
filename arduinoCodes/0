@@ -1,0 +1,179 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ================= CONFIGURATION =================
+// Check your LCD I2C address (usually 0x27 or 0x3F)
+#define LCD_ADDRESS     0x27 
+#define LCD_COLS        16
+#define LCD_ROWS        2
+
+// Packet Definition based on your FPGA Logic
+// 16 Bytes (Mem) + 1 Byte (Size) + 1 Byte (Ptr) + 6 Bytes (Last/Answer)
+#define PACKET_SIZE     24 
+
+// ================= MAPPINGS =================
+// Mapping hex codes to single chars for 16x2 LCD
+// Based on the 'localparam' list provided
+char mapByteToChar(byte b) {
+    // Numbers 0-9
+    if (b >= 0x00 && b <= 0x09) return b + '0';
+
+    switch (b) {
+        // Basic Math
+        case 0x2A: return '+'; // OP_ADD
+        case 0x2B: return '-'; // OP_SUB
+        case 0x2C: return '*'; // OP_MUL
+        case 0x2D: return '/'; // OP_DIV
+        
+        // Brackets
+        case 0x1E: return '('; // OP_LB
+        case 0x1F: return ')'; // OP_RB
+        
+        // Symbols
+        case 0xDD: return '.'; // OP_DECIMAL
+        case 0xDC: return ','; // OP_COMMA
+        
+        // Constants
+        case 0xC0: return 'e'; // OP_E (Constant e)
+        case 0xC1: return 0xF7; // OP_PI (Use LCD Pi symbol or 'p')
+
+        // Functions (Mapped to Single Characters for Space)
+        case 0xF0: return 'E'; // OP_EXP (e^x) -> 'E'
+        case 0xF1: return 'N'; // OP_LN (Natural Log) -> 'N'
+        case 0xF2: return '^'; // OP_POW -> '^'
+        case 0xF3: return 'L'; // OP_LOG -> 'L'
+        case 0xF4: return 'S'; // OP_SIN -> 'S'
+        case 0xF5: return 'C'; // OP_COS -> 'C'
+        case 0xF6: return 'T'; // OP_TAN -> 'T'
+        
+        // Misc Trig
+        case 0xF7: return 'c'; // OP_CSC -> small c
+        case 0xF8: return 's'; // OP_SEC -> small s
+        case 0xF9: return 't'; // OP_COT -> small t
+        
+        // Arc Trig
+        case 0xFA: return 'A'; // OP_ASIN
+        case 0xFB: return 'B'; // OP_ACOS
+        case 0xFC: return 'G'; // OP_ATAN
+
+        default:   return '?'; // Unknown
+    }
+}
+
+// ================= GLOBALS =================
+LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
+
+// Buffer to hold data from FPGA
+volatile byte rxBuffer[PACKET_SIZE];
+volatile byte rxIndex = 0;
+volatile bool packetReady = false;
+
+// ================= SETUP =================
+void setup() {
+    // 1. Initialize LCD
+    lcd.begin();
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("Waiting for FPGA");
+
+    // 2. Initialize SPI as SLAVE
+    // Important: We do NOT call SPI.begin(). We configure registers manually
+    // to ensure we are a Slave and using the correct Mode.
+    
+    pinMode(MISO, OUTPUT); // Send data to FPGA (if needed)
+    pinMode(MOSI, INPUT);  // Receive from FPGA
+    pinMode(SCK, INPUT);   // Clock from FPGA
+    pinMode(SS, INPUT);    // Chip Select from FPGA
+
+    // SPCR = SPI Control Register
+    // SPE = SPI Enable
+    // SPIE = SPI Interrupt Enable (We want an interrupt when byte received)
+    // We leave MSTR bit 0 (Slave mode)
+    // We leave CPOL=0, CPHA=0 (Mode 0) to match your Verilog
+    SPCR |= _BV(SPE) | _BV(SPIE); 
+    
+    // Clear any garbage data
+    byte junk = SPSR;
+    junk = SPDR;
+}
+
+// ================= SPI INTERRUPT =================
+// This function runs automatically whenever a byte arrives
+ISR (SPI_STC_vect) {
+    byte c = SPDR; // Read the byte from SPI Data Register
+
+    // Synchronization check:
+    // If the Slave Select (SS/Pin 10) is HIGH, the transaction is over/reset.
+    // Ideally, we just fill the buffer.
+    
+    if (rxIndex < PACKET_SIZE) {
+        rxBuffer[rxIndex++] = c;
+    }
+    
+    // If buffer full, flag for processing in main loop
+    if (rxIndex >= PACKET_SIZE) {
+        packetReady = true;
+        rxIndex = 0; // Wrap around (safety)
+    }
+}
+
+// ================= LOOP =================
+void loop() {
+    // Use a simpler sync mechanism: 
+    // If the FPGA pulls CS HIGH, it means the packet is done.
+    // We reset the index to 0 to ensure we start fresh on the next packet.
+    if (digitalRead(SS) == HIGH) {
+        rxIndex = 0;
+    }
+
+    if (packetReady) {
+        // --- DECODE PACKET ---
+        
+        // 1. Create a local copy so ISR doesn't overwrite while we print
+        byte localBuf[PACKET_SIZE];
+        noInterrupts(); // Pause interrupts briefly
+        memcpy(localBuf, (const void*)rxBuffer, PACKET_SIZE);
+        packetReady = false;
+        interrupts(); // Resume interrupts
+
+        // 2. Parse Variables
+        // Bytes 0-15: Memory Data
+        // Byte 16: Size
+        // Byte 17: Ptr (Ignored per request)
+        // Bytes 18-23: Last (48 bits total)
+        
+        byte sizeVal = localBuf[16];
+        
+        // --- ROW 1: MEMORY DISPLAY ---
+        lcd.setCursor(0, 0);
+        for (int i = 0; i < 16; i++) {
+            if (i < sizeVal) {
+                // Map the byte to your custom character set
+                lcd.print(mapByteToChar(localBuf[i]));
+            } else {
+                // If we are past the 'size', print blank
+                lcd.print(" ");
+            }
+        }
+
+        // --- ROW 2: ANSWER BITS 0-15 ---
+        // The "Last" packet is 6 bytes (Bytes 18 to 23).
+        // It is sent MSB first. 
+        // localBuf[22] contains Answer[15:8]
+        // localBuf[23] contains Answer[7:0]
+        
+        unsigned int lower16 = (localBuf[22] << 8) | localBuf[23];
+
+        lcd.setCursor(0, 1);
+        lcd.print("Ans[15:0]:");
+        
+        // Print in Hex for troubleshooting (4 digits)
+        if (lower16 < 0x1000) lcd.print("0");
+        if (lower16 < 0x100)  lcd.print("0");
+        if (lower16 < 0x10)   lcd.print("0");
+        lcd.print(lower16, HEX);
+        
+        lcd.print("   "); // Clear rest of line
+    }
+}

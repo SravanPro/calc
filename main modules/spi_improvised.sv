@@ -1,28 +1,4 @@
-    
-    // // 255 : 0
-    // wire [depth * width - 1 : 0] buffer;
-
-    // // 127 : 0
-    // wire [(depth * width / 2 - 1) : 0] 
-    // buffer0 = buffer[(depth * width - 1):(depth * width / 2)]; // 255 to 128
-
-    // // 127 : 0
-    // wire [(depth * width / 2 - 1) : 0]
-    // buffer1 = buffer[(depth * width / 2 - 1) : 0]; // 127 : 0
-
-/*
-when bufupdate istriggered:
-send only teh page depending on the state of "currPage"
-if its 0, sned lower page, 1, higher page
-
-when jumpupdate is triggered,
-    send the differnet page
-    and hten change the currpage
-
-when ptr update is triggered,
-well, the ptr dosent affect thelength of the page, or anything.
-but still, ill send the whole buffer, since the ptr info is appendedat the endof the protocol anyway
-*/
+`timescale 1ns / 1ps
 
 module spiInterface 
     #(
