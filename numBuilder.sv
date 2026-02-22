@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
 
+//i only took chatgpt help in cases where i had to put in guarding helpers, as they
+// can prevent errors i couldnt have forseen, only possible with the help of chat
 module numBuilder #(
     parameter depth = 10,
     parameter width = 8,
@@ -192,7 +194,6 @@ module numBuilder #(
                     end
 
 
-
                     // Case 3: if token is an operator/func/bracket/etc
                     else begin
                         // If we were building a number, and then hit an operator, then flush number 
@@ -224,19 +225,8 @@ module numBuilder #(
                             i <= i + 1'b1;
                         end
                     end
-
-
-
-
-
-
                 end
-
-
-
-
             end
         end
     end
-
 endmodule

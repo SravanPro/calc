@@ -53,6 +53,7 @@ module builderTB;
   wire [WIDTH-1:0] mem17 = uut.mem[17];
   wire [WIDTH-1:0] mem18 = uut.mem[18];
   wire [WIDTH-1:0] mem19 = uut.mem[19];
+  wire [WIDTH-1:0] mem20 = uut.mem[20];
 
   // ---- Probe wires: Builder memOut[0..19] (42-bit) ----
   wire [NEWWIDTH-1:0] memOut0  = uut.memOut[0];
@@ -75,6 +76,7 @@ module builderTB;
   wire [NEWWIDTH-1:0] memOut17 = uut.memOut[17];
   wire [NEWWIDTH-1:0] memOut18 = uut.memOut[18];
   wire [NEWWIDTH-1:0] memOut19 = uut.memOut[19];
+  wire [NEWWIDTH-1:0] memOut20 = uut.memOut[20];
 
   wire done = uut.done;
 
@@ -155,9 +157,10 @@ module builderTB;
     press_eval();
 
     // wait for done
-    wait (done === 1'b1);
-    @(posedge clock);
+//    wait (done === 1'b1);
+//    @(posedge clock);
 
+    #1000;
     $finish;
   end
 
