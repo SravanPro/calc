@@ -3,6 +3,7 @@
 module parent #(
     parameter buttons = 27,
 
+
     parameter depth = 20,
     parameter width = 8,
     parameter newWidth = 44
