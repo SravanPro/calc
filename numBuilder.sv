@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+// note: a number shouldnt exceed 17179869183 (11 digits)
+// 17179869183, 1.7179869183, and 0.0000017179869183 all fit (same mantissa, different exp).
 
 //i only took chatgpt help in cases where i had to put in guarding helpers, as they
 // can prevent errors i couldnt have forseen, only possible with the help of chat

@@ -1,24 +1,22 @@
 `timescale 1ns / 1ps
 
 
-module postEval #(
-    parameter depth = 10,
-    parameter newWidth = 44 
-)(
-    input wire clock,
-    input wire reset,
-    input wire conv,
+module adder(
+    input eval,
+    output reg done,
 
-    input wire [$clog2(depth+1)-1:0] postfixSize,
-    input wire [newWidth-1:0] postfix [depth-1:0],
+    input signA, signB,
+    input [33:0] mantA, mantB,
+    input signed [6:0] expA, expB,
 
-    output reg [newWidth-1:0] answer,
-
-    output reg done //pulse
-
+    output reg signRes
+    output reg [33:0] mantReg,
+    output reg [6:0] expRes
 );
 
 
+
+    // using the state system insteaod of the fragile RBpop, commaPOP registers
     typedef enum logic [2:0] {
         S_READ,     
         S_OP_POP,
@@ -310,7 +308,7 @@ module postEval #(
 
 
     always @(posedge clock or posedge reset) begin
-
+        
         done <= 0; //just for safety
         if (reset) begin
 
@@ -526,3 +524,4 @@ module postEval #(
 
 
 endmodule
+
