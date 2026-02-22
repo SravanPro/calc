@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module parent #(
-    parameter buttons = 26,
+    parameter buttons = 27,
 
     parameter depth = 20,
     parameter width = 8,
@@ -17,7 +17,8 @@ module parent #(
     input ptrRight,
     input eval,
     
-    output parentOut
+    // dummy output
+    output  wire parentOut
     
 );
 
@@ -35,7 +36,7 @@ module parent #(
     wire [$clog2(depth+1)-1:0] sizeOut;
     wire [width-1 : 0] mem [depth-1 : 0];
 
-    //numBuilder -> ??
+    //numBuilder -> infixToPostfix wires
     wire [$clog2(depth+1)-1:0] newSize;
     wire [newWidth-1:0] memOut [depth-1:0];
     wire done; //pulse
@@ -44,7 +45,8 @@ module parent #(
 
     // keyboard instance
     keyboard #(
-        .width(width)
+        .width(width),
+        .buttons(buttons)
     ) kb (
         .clock(clock),
         .reset(reset),
@@ -97,6 +99,21 @@ module parent #(
 
     );
 
-    assign parentOut = done;
+    inToPost #(
+        .depth(depth),
+        .newWidth(newWidth)
+    ) itp (
+        .clock(clock),
+        .reset(reset),
+        .conv(done),
+
+        .infixSize(newSize), // recieves the count of the no of elements in the stack
+        .infix(memOut),
+
+        .postfixSize(),
+        .postfix(),
+        .done(parentOut)
+
+    );
 
 endmodule

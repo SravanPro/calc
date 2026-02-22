@@ -2,11 +2,13 @@
 
 module keyboard #(
     parameter width = 8,
-    parameter buttons = 26
+    parameter buttons = 27
 )(
     input clock, reset,
 
-    input  [buttons - 1 : 0] b,        
+    input  [buttons - 1 : 0] b,     
+    
+    //(outdated)
     // 0-9 : digits
     //10, 11, 12, 13 :  add, sub, mul , div
     //14, 15: left bracket, right bracket
@@ -58,10 +60,10 @@ localparam OP_8 = 8'h08;
 localparam OP_9 = 8'h09;
 
 // basic operators
-localparam OP_ADD = 8'h1A;
-localparam OP_SUB = 8'h1B;
-localparam OP_MUL = 8'h1C;
-localparam OP_DIV = 8'h1D;
+localparam OP_ADD = 8'h2A;
+localparam OP_SUB = 8'h2B;
+localparam OP_MUL = 8'h2C;
+localparam OP_DIV = 8'h2D;
 
 // brackets
 localparam OP_LB  = 8'h1E;
@@ -69,6 +71,7 @@ localparam OP_RB  = 8'h1F;
 
 // additional symbols
 localparam OP_DECIMAL = 8'hDD;   // .
+localparam OP_COMMA = 8'hDC;   // ,
 
 localparam OP_E       = 8'hC0;   // constant e
 localparam OP_PI      = 8'hC1;   // constant pi
@@ -123,27 +126,30 @@ localparam OP_ATAN    = 8'hFC;   // arctan(x)
                 
                     // decimal point
                     16: key_code = OP_DECIMAL;
+                    17: key_code = OP_COMMA;
                 
                     // constants
-                    17: key_code = OP_E;
-                    18: key_code = OP_PI;
+                    18: key_code = OP_E;
+                    19: key_code = OP_PI;
                 
                     // functions
-                    19: key_code = OP_EXP;
-                    20: key_code = OP_LN;
-                    21: key_code = OP_POW;
-                    22: key_code = OP_LOG;
-                    23: key_code = OP_SIN;
-                    24: key_code = OP_COS;
-                    25: key_code = OP_TAN;
+                    20: key_code = OP_EXP;
+                    21: key_code = OP_LN;
+                    22: key_code = OP_POW;
+                    23: key_code = OP_LOG;
+                    24: key_code = OP_SIN;
+                    25: key_code = OP_COS;
+                    26: key_code = OP_TAN;
                 
                     // misc (if used later)
-                    26: key_code = OP_CSC;
-                    27: key_code = OP_SEC;
-                    28: key_code = OP_COT;
-                    29: key_code = OP_ASIN;
-                    30: key_code = OP_ACOS;
-                    31: key_code = OP_ATAN;
+                    27: key_code = OP_CSC;
+                    28: key_code = OP_SEC;
+                    29: key_code = OP_COT;
+                    30: key_code = OP_ASIN;
+                    31: key_code = OP_ACOS;
+                    32: key_code = OP_ATAN;
+
+                    
                 endcase     
 
             end
