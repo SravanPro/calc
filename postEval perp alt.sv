@@ -142,23 +142,23 @@ module postEval #(
     wire mulSignRes;
     wire [33:0] mulMantRes;
     wire signed [6:0] mulExpRes;
-    multiplier mul0 (
+    // multiplier mul0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(mulEval),
-        .done(mulDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(mulSignRes),
-        .mantRes(mulMantRes),
-        .expRes(mulExpRes)
-    );
+    //     .eval(mulEval),
+    //     .done(mulDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signB(signB),
+    //     .mantB(mantB),
+    //     .expB(expB),
+    //     .signRes(mulSignRes),
+    //     .mantRes(mulMantRes),
+    //     .expRes(mulExpRes)
+    // );
 
     // ---------- DIV ----------
     reg divEval;
@@ -166,23 +166,23 @@ module postEval #(
     wire divSignRes;
     wire [33:0] divMantRes;
     wire signed [6:0] divExpRes;
-    divider div0 (
+    // divider div0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(divEval),
-        .done(divDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(divSignRes),
-        .mantRes(divMantRes),
-        .expRes(divExpRes)
-    );
+    //     .eval(divEval),
+    //     .done(divDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signB(signB),
+    //     .mantB(mantB),
+    //     .expB(expB),
+    //     .signRes(divSignRes),
+    //     .mantRes(divMantRes),
+    //     .expRes(divExpRes)
+    // );
 
     // ---------- POW ----------
     reg powEval;
@@ -190,23 +190,23 @@ module postEval #(
     wire powSignRes;
     wire [33:0] powMantRes;
     wire signed [6:0] powExpRes;
-    power pow0 (
+    // power pow0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(powEval),
-        .done(powDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(powSignRes),
-        .mantRes(powMantRes),
-        .expRes(powExpRes)
-    );
+    //     .eval(powEval),
+    //     .done(powDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signB(signB),
+    //     .mantB(mantB),
+    //     .expB(expB),
+    //     .signRes(powSignRes),
+    //     .mantRes(powMantRes),
+    //     .expRes(powExpRes)
+    // );
 
     // ---------- LOG ----------
     reg logEval;
@@ -214,23 +214,23 @@ module postEval #(
     wire logSignRes;
     wire [33:0] logMantRes;
     wire signed [6:0] logExpRes;
-    logarithm log0 (
+    // logarithm log0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(logEval),
-        .done(logDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(logSignRes),
-        .mantRes(logMantRes),
-        .expRes(logExpRes)
-    );
+    //     .eval(logEval),
+    //     .done(logDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signB(signB),
+    //     .mantB(mantB),
+    //     .expB(expB),
+    //     .signRes(logSignRes),
+    //     .mantRes(logMantRes),
+    //     .expRes(logExpRes)
+    // );
 
     // ---------- EXP ----------
     reg expEval;
@@ -238,20 +238,20 @@ module postEval #(
     wire expSignRes;
     wire [33:0] expMantRes;
     wire signed [6:0] expExpRes;
-    exponential exp0 (
+    // exponential exp0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(expEval),
-        .done(expDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(expSignRes),
-        .mantRes(expMantRes),
-        .expRes(expExpRes)
-    );
+    //     .eval(expEval),
+    //     .done(expDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signRes(expSignRes),
+    //     .mantRes(expMantRes),
+    //     .expRes(expExpRes)
+    // );
 
     // ---------- LN ----------
     reg lnEval;
@@ -259,20 +259,20 @@ module postEval #(
     wire lnSignRes;
     wire [33:0] lnMantRes;
     wire signed [6:0] lnExpRes;
-    naturalLog ln0 (
+    // naturalLog ln0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(lnEval),
-        .done(lnDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(lnSignRes),
-        .mantRes(lnMantRes),
-        .expRes(lnExpRes)
-    );
+    //     .eval(lnEval),
+    //     .done(lnDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signRes(lnSignRes),
+    //     .mantRes(lnMantRes),
+    //     .expRes(lnExpRes)
+    // );
 
     // ---------- SIN ----------
     reg sinEval;
@@ -280,20 +280,20 @@ module postEval #(
     wire sinSignRes;
     wire [33:0] sinMantRes;
     wire signed [6:0] sinExpRes;
-    sine sin0 (
+    // sine sin0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
 
-        .eval(sinEval),
-        .done(sinDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(sinSignRes),
-        .mantRes(sinMantRes),
-        .expRes(sinExpRes)
-    );
+    //     .eval(sinEval),
+    //     .done(sinDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signRes(sinSignRes),
+    //     .mantRes(sinMantRes),
+    //     .expRes(sinExpRes)
+    // );
 
     // ---------- COS ----------
     reg cosEval;
@@ -301,20 +301,20 @@ module postEval #(
     wire cosSignRes;
     wire [33:0] cosMantRes;
     wire signed [6:0] cosExpRes;
-    cosine cos0 (
+    // cosine cos0 (
 
-        .clock(clock),
-        .reset(reset),
+    //     .clock(clock),
+    //     .reset(reset),
         
-        .eval(cosEval),
-        .done(cosDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(cosSignRes),
-        .mantRes(cosMantRes),
-        .expRes(cosExpRes)
-    );
+    //     .eval(cosEval),
+    //     .done(cosDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signRes(cosSignRes),
+    //     .mantRes(cosMantRes),
+    //     .expRes(cosExpRes)
+    // );
 
     // ---------- TAN ----------
     reg tanEval;
@@ -322,20 +322,22 @@ module postEval #(
     wire tanSignRes;
     wire [33:0] tanMantRes;
     wire signed [6:0] tanExpRes;
-    tangent tan0 (
 
-        .clock(clock),
-        .reset(reset),
+    // tangent tan0 (
 
-        .eval(tanEval),
-        .done(tanDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(tanSignRes),
-        .mantRes(tanMantRes),
-        .expRes(tanExpRes)
-    );
+    //     .clock(clock),
+    //     .reset(reset),
+
+    //     .eval(tanEval),
+    //     .done(tanDone),
+    //     .signA(signA),
+    //     .mantA(mantA),
+    //     .expA(expA),
+    //     .signRes(tanSignRes),
+    //     .mantRes(tanMantRes),
+    //     .expRes(tanExpRes)
+    // );
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Done signal & Result registers Interfacing

@@ -3,7 +3,6 @@
 module parent #(
     parameter buttons = 27,
 
-
     parameter depth = 20,
     parameter width = 8,
     parameter newWidth = 44
@@ -18,8 +17,9 @@ module parent #(
     input ptrRight,
     input eval,
     
-    // dummy output
-    output  parentOut
+    //postfix evaluator -> parent output
+    output [newWidth-1:0] answer,
+    output done //pulse
     
 );
 
@@ -40,12 +40,15 @@ module parent #(
     //numBuilder -> infixToPostfix wires
     wire [$clog2(depth+1)-1:0] newSize;
     wire [newWidth-1:0] memOut [depth-1:0];
-    wire done; //pulse
+    wire done1; //pulse
 
     ///infixToPostfix ->  postfix evaluator wires
     wire [$clog2(depth+1)-1:0] postfixSize;
     wire [newWidth-1:0] postfix [depth-1:0];
+    wire done2;
 
+    //postfix evaluator -> parent output
+    // declared in parent module's output
 
 
     // keyboard instance
@@ -100,7 +103,7 @@ module parent #(
 
         .newSize(newSize),
         .memOut(memOut),
-        .done(done)
+        .done(done1)
 
     );
 
@@ -110,7 +113,7 @@ module parent #(
     ) itp (
         .clock(clock),
         .reset(reset),
-        .conv(done),
+        .conv(done1),
 
         .infixSize(newSize), // recieves the count of the no of elements in the stack
         .infix(memOut),
@@ -119,7 +122,24 @@ module parent #(
         .postfix(postfix),
         .postfixSize(postfixSize),
         
-        .done(parentOut)
+        .done(done2)
+
+    );
+
+    postEval #(
+        .depth(depth),
+        .newWidth(newWidth)
+    ) pev (
+        .clock(clock),
+        .reset(reset),
+        .conv(done2),
+        
+        .postfix(postfix),
+        .postfixSize(postfixSize),
+
+        .answer(answer),
+        
+        .done(done3)
 
     );
 
