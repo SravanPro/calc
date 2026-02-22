@@ -32,11 +32,10 @@ module postEval #(
     state_t state;
 
 
-
-
+    // Registers & Wires
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // stack like ds
     reg [newWidth-1 : 0] stack [depth-1 : 0];
-
     
     reg [$clog2(depth+1)-1:0] pof = 0; // for postfix mem
     reg [$clog2(depth+1)-1:0] stk = 0; // for stack mem
@@ -58,11 +57,13 @@ module postEval #(
     reg signA, signB = 0;
     reg [33:0] mantA, mantB = 0;
     reg signed [6:0] expA, expB = 0;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    
+    // Function Modules
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-// ---------- ADD ----------
+    // ---------- ADD ----------
     reg addEval;
     wire addDone;
     wire addSignRes;
@@ -266,41 +267,43 @@ module postEval #(
         .mantRes(tanMantRes),
         .expRes(tanExpRes)
     );
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    // Done signal & Result registers Interfacing
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //perp's suggestion
-// Selected result + done, keyed ONLY by op (prevents wrong-module capture)
-logic moduleDone;
-logic signRes;
-logic [33:0] mantRes;
-logic signed [6:0] expRes;
+    // Selected result + done, keyed ONLY by op (prevents wrong-module capture)
+    logic moduleDone;
+    logic signRes;
+    logic [33:0] mantRes;
+    logic signed [6:0] expRes;
 
-always_comb begin
-  // defaults prevent inferred latches
-  moduleDone = 1'b0;
-  signRes    = 1'b0;
-  mantRes    = '0;
-  expRes     = '0;
+    always_comb begin
+    // defaults prevent inferred latches
+    moduleDone = 1'b0;
+    signRes    = 1'b0;
+    mantRes    = '0;
+    expRes     = '0;
 
-  unique case (op[7:0])
-    8'h2A: begin moduleDone=addDone; signRes=addSignRes; mantRes=addMantRes; expRes=addExpRes; end
-    8'h2B: begin moduleDone=subDone; signRes=subSignRes; mantRes=subMantRes; expRes=subExpRes; end
-    8'h2C: begin moduleDone=mulDone; signRes=mulSignRes; mantRes=mulMantRes; expRes=mulExpRes; end
-    8'h2D: begin moduleDone=divDone; signRes=divSignRes; mantRes=divMantRes; expRes=divExpRes; end
+    unique case (op[7:0])
+        8'h2A: begin moduleDone=addDone; signRes=addSignRes; mantRes=addMantRes; expRes=addExpRes; end
+        8'h2B: begin moduleDone=subDone; signRes=subSignRes; mantRes=subMantRes; expRes=subExpRes; end
+        8'h2C: begin moduleDone=mulDone; signRes=mulSignRes; mantRes=mulMantRes; expRes=mulExpRes; end
+        8'h2D: begin moduleDone=divDone; signRes=divSignRes; mantRes=divMantRes; expRes=divExpRes; end
 
-    8'hF2: begin moduleDone=powDone; signRes=powSignRes; mantRes=powMantRes; expRes=powExpRes; end
-    8'hF3: begin moduleDone=logDone; signRes=logSignRes; mantRes=logMantRes; expRes=logExpRes; end
+        8'hF2: begin moduleDone=powDone; signRes=powSignRes; mantRes=powMantRes; expRes=powExpRes; end
+        8'hF3: begin moduleDone=logDone; signRes=logSignRes; mantRes=logMantRes; expRes=logExpRes; end
 
-    8'hF0: begin moduleDone=expDone; signRes=expSignRes; mantRes=expMantRes; expRes=expExpRes; end
-    8'hF1: begin moduleDone=lnDone;  signRes=lnSignRes;  mantRes=lnMantRes;  expRes=lnExpRes;  end
+        8'hF0: begin moduleDone=expDone; signRes=expSignRes; mantRes=expMantRes; expRes=expExpRes; end
+        8'hF1: begin moduleDone=lnDone;  signRes=lnSignRes;  mantRes=lnMantRes;  expRes=lnExpRes;  end
 
-    8'hF4: begin moduleDone=sinDone; signRes=sinSignRes; mantRes=sinMantRes; expRes=sinExpRes; end
-    8'hF5: begin moduleDone=cosDone; signRes=cosSignRes; mantRes=cosMantRes; expRes=cosExpRes; end
-    8'hF6: begin moduleDone=tanDone; signRes=tanSignRes; mantRes=tanMantRes; expRes=tanExpRes; end
+        8'hF4: begin moduleDone=sinDone; signRes=sinSignRes; mantRes=sinMantRes; expRes=sinExpRes; end
+        8'hF5: begin moduleDone=cosDone; signRes=cosSignRes; mantRes=cosMantRes; expRes=cosExpRes; end
+        8'hF6: begin moduleDone=tanDone; signRes=tanSignRes; mantRes=tanMantRes; expRes=tanExpRes; end
 
-    default: begin end
-  endcase
-end
+        default: begin end
+    endcase
+    end
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -355,7 +358,7 @@ end
 
         else begin
 
-            // should i really be adding these here??
+        //resetting eval pins
             addEval <= 1'b0;
             subEval <= 1'b0;
             mulEval <= 1'b0;
@@ -368,15 +371,11 @@ end
             sinEval <= 1'b0;
             cosEval <= 1'b0;
             tanEval <= 1'b0;
-
-
-            //more to be added
-            //make sure ot add the eval pulses of the unary functions as well..
+        //
 
             case (state)
 
                 S_READ: begin
-
                     if(pof < postfixSize) begin //infix top is incremented at the end of the loop
 
                         if (isConst) begin
@@ -396,13 +395,11 @@ end
                         end
 
                     end
-
                     else begin //pof >= postfixSize : Conversion is done 
                         state <= S_DONE;
                     end
 
                 end
-
 
                 S_OP_POP: begin
                     if((
@@ -486,7 +483,6 @@ end
                 end
 
 
-                //maybe ill use this state for 1 input functions too, ill think about it
                 S_WAIT: begin
                     if (moduleDone) begin
                         stack[stk] <= {2'b00, signRes, mantRes, expRes};
@@ -495,7 +491,6 @@ end
                     end
                 end
 
-
                 S_DONE: begin
                     
                     answer <= stack[stk-1];
@@ -503,9 +498,7 @@ end
                     state <= S_IDLE;   
                     
                 end
-
-
-                
+          
                 //added this module so that i can actually get a pulse
                 S_IDLE: begin
                     done <= 0;
@@ -515,11 +508,7 @@ end
                         state <= S_READ;
                     end
                 end
-
-
-
-
-            
+       
             endcase
         
             convPrevState <= conv;

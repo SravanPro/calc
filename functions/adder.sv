@@ -1,7 +1,9 @@
 `timescale 1ns / 1ps
 
-
+// multiply by 10: y = (x << 3) + (x << 1);
 module adder(
+    input clock, reset,
+
     input eval,
     output reg done,
 
@@ -9,515 +11,284 @@ module adder(
     input [33:0] mantA, mantB,
     input signed [6:0] expA, expB,
 
-    output reg signRes
-    output reg [33:0] mantReg,
-    output reg [6:0] expRes
+    output reg signRes,
+    output reg [33:0] mantRes,
+    output signed reg [6:0] expRes
 );
 
 
+    localparam [34:0] M_MAX = 35'd17179869183;
+    reg signL = 0;
+    reg signS = 0;
+    reg [33:0] mantL = 0;
+    reg [33:0] mantS = 0;
+    reg signed [6:0] expL = 0;
+    reg signed [6:0] expS = 0;
 
-    // using the state system insteaod of the fragile RBpop, commaPOP registers
-    typedef enum logic [2:0] {
-        S_READ,     
-        S_OP_POP,
-
-        S_WAIT,
-
-        S_DONE,
-        S_IDLE
-    } state_t;
-
-    state_t state;
-
-
-
-
-    // stack like ds
-    reg [newWidth-1 : 0] stack [depth-1 : 0];
+    //intermediate non normalized Sum and Exponents
+    
+    reg signSum; //actually dont need this, but writing anyway to group these 3 
+    reg [34:0] mantSum; 
+    reg signed [6:0] expSum; 
+    
 
     
-    reg [$clog2(depth+1)-1:0] pof = 0; // for postfix mem
-    reg [$clog2(depth+1)-1:0] stk = 0; // for stack mem
+
+    reg [6:0] n;
+    reg [6:0] d;
+
+    reg [6:0] nTemp;
+    reg [6:0] dTemp;
+    reg [6:0] dnTemp;
 
 
-
-
-    wire validTok = (pof < postfixSize);
-    wire isConst = validTok && (postfix[pof][newWidth-1 : newWidth-2] == 2'b00);
-
-
-    // {2'b00, sign, mantissa, exp};
-    // [43 : 42]: misc, lite
-    // [41] : sign
-    // [40 : 7] : mantissa
-    // [6 : 0] : exponent
-
-    reg [newWidth-1:0] op;
-
-    reg signA, signB = 0;
-    reg [33:0] mantA, mantB = 0;
-    reg signed [6:0] expA, expB = 0;
-
-
-
-
-// ---------- ADD ----------
-    reg addEval;
-    wire addDone;
-    wire addSignRes;
-    wire [33:0] addMantRes;
-    wire signed [6:0] addExpRes;
-    adder add0 (
-        .eval(addEval),
-        .done(addDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(addSignRes),
-        .mantRes(addMantRes),
-        .expRes(addExpRes)
+    wire [3:0] nWire;
+    mul10Count mul10(
+        .x(mantL),
+        .nWire(nWire)
     );
 
-    // ---------- SUB ----------
-    reg subEval;
-    wire subDone;
-    wire subSignRes;
-    wire [33:0] subMantRes;
-    wire signed [6:0] subExpRes;
-    subber sub0 (
-        .eval(subEval),
-        .done(subDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(subSignRes),
-        .mantRes(subMantRes),
-        .expRes(subExpRes)
-    );
+    typedef enum logic [2:0] {
+    S_IDLE          = 3'd0,
+    S_FIND_ND       = 3'd1,
+    S_CASE          = 3'd2,
+    S_CASE_A        = 3'd3,
+    S_CASE_B        = 3'd4,
+    S_EVAL          = 3'd5,
+    S_FINALIZATION  = 3'd6,
+    S_DONE          = 3'd7
+    } state_t;
+    state_t state;
 
-    // ---------- MUL ----------
-    reg mulEval;
-    wire mulDone;
-    wire mulSignRes;
-    wire [33:0] mulMantRes;
-    wire signed [6:0] mulExpRes;
-    multiplier mul0 (
-        .eval(mulEval),
-        .done(mulDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(mulSignRes),
-        .mantRes(mulMantRes),
-        .expRes(mulExpRes)
-    );
+    reg evalPrevState = 0;
+    wire doEval = eval && !evalPrevState;
 
-    // ---------- DIV ----------
-    reg divEval;
-    wire divDone;
-    wire divSignRes;
-    wire [33:0] divMantRes;
-    wire signed [6:0] divExpRes;
-    divider div0 (
-        .eval(divEval),
-        .done(divDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(divSignRes),
-        .mantRes(divMantRes),
-        .expRes(divExpRes)
-    );
-
-    // ---------- POW ----------
-    reg powEval;
-    wire powDone;
-    wire powSignRes;
-    wire [33:0] powMantRes;
-    wire signed [6:0] powExpRes;
-    power pow0 (
-        .eval(powEval),
-        .done(powDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(powSignRes),
-        .mantRes(powMantRes),
-        .expRes(powExpRes)
-    );
-
-    // ---------- LOG ----------
-    reg logEval;
-    wire logDone;
-    wire logSignRes;
-    wire [33:0] logMantRes;
-    wire signed [6:0] logExpRes;
-    logarithm log0 (
-        .eval(logEval),
-        .done(logDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(logSignRes),
-        .mantRes(logMantRes),
-        .expRes(logExpRes)
-    );
-
-    // ---------- EXP ----------
-    reg expEval;
-    wire expDone;
-    wire expSignRes;
-    wire [33:0] expMantRes;
-    wire signed [6:0] expExpRes;
-    exponential exp0 (
-        .eval(expEval),
-        .done(expDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(expSignRes),
-        .mantRes(expMantRes),
-        .expRes(expExpRes)
-    );
-
-    // ---------- LN ----------
-    reg lnEval;
-    wire lnDone;
-    wire lnSignRes;
-    wire [33:0] lnMantRes;
-    wire signed [6:0] lnExpRes;
-    naturalLog ln0 (
-        .eval(lnEval),
-        .done(lnDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(lnSignRes),
-        .mantRes(lnMantRes),
-        .expRes(lnExpRes)
-    );
-
-    // ---------- SIN ----------
-    reg sinEval;
-    wire sinDone;
-    wire sinSignRes;
-    wire [33:0] sinMantRes;
-    wire signed [6:0] sinExpRes;
-    sine sin0 (
-        .eval(sinEval),
-        .done(sinDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(sinSignRes),
-        .mantRes(sinMantRes),
-        .expRes(sinExpRes)
-    );
-
-    // ---------- COS ----------
-    reg cosEval;
-    wire cosDone;
-    wire cosSignRes;
-    wire [33:0] cosMantRes;
-    wire signed [6:0] cosExpRes;
-    cosine cos0 (
-        .eval(cosEval),
-        .done(cosDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(cosSignRes),
-        .mantRes(cosMantRes),
-        .expRes(cosExpRes)
-    );
-
-    // ---------- TAN ----------
-    reg tanEval;
-    wire tanDone;
-    wire tanSignRes;
-    wire [33:0] tanMantRes;
-    wire signed [6:0] tanExpRes;
-    tangent tan0 (
-        .eval(tanEval),
-        .done(tanDone),
-        .signA(signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signRes(tanSignRes),
-        .mantRes(tanMantRes),
-        .expRes(tanExpRes)
-    );
-
-    //more to be added
-
-    wire signRes;
-    wire [33:0] mantRes;
-    wire signed [6:0] expRes;
-
-    assign {signRes, mantRes, expRes} =
-        addDone ? {addSignRes, addMantRes, addExpRes} :
-        subDone ? {subSignRes, subMantRes, subExpRes} :
-        mulDone ? {mulSignRes, mulMantRes, mulExpRes} :
-        divDone ? {divSignRes, divMantRes, divExpRes} :
-        powDone ? {powSignRes, powMantRes, powExpRes} :
-        logDone ? {logSignRes, logMantRes, logExpRes} :
-        expDone ? {expSignRes, expMantRes, expExpRes} :
-        lnDone  ? {lnSignRes, lnMantRes, lnExpRes} :
-        sinDone ? {sinSignRes, sinMantRes, sinExpRes} :
-        cosDone ? {cosSignRes, cosMantRes, cosExpRes} :
-        tanDone ? {tanSignRes, tanMantRes, tanExpRes} :
-        {1'b0, 34'b0, 7'b0}; // default safe zero
-
-
-    // --- moduleDone using op-based select (safe) ---
-    wire moduleDone = 
-        (op[7:0] == 8'h2A) ? addDone :
-        (op[7:0] == 8'h2B) ? subDone :
-        (op[7:0] == 8'h2C) ? mulDone :
-        (op[7:0] == 8'h2D) ? divDone :
-        (op[7:0] == 8'hF2) ? powDone :
-        (op[7:0] == 8'hF3) ? logDone :
-        (op[7:0] == 8'hF0) ? expDone :
-        (op[7:0] == 8'hF1) ? lnDone  :
-        (op[7:0] == 8'hF4) ? sinDone :
-        (op[7:0] == 8'hF5) ? cosDone :
-        (op[7:0] == 8'hF6) ? tanDone :
-        1'b0;
-
-    reg convPrevState = 0;
-    wire doConv = conv && !convPrevState;
     integer k;
-
 
     always @(posedge clock or posedge reset) begin
         
         done <= 0; //just for safety
+
         if (reset) begin
+            // FSM / handshake
+            state         <= S_IDLE;
+            done          <= 1'b0;
+            evalPrevState <= 1'b0;
 
-            state <= S_IDLE;
+            // outputs
+            signRes <= 1'b0;
+            mantRes <= 34'd0;
+            expRes  <= '0;
 
-            stk <= 0;
-            pof <= 0;
+            // latched operands
+            signL <= 1'b0;  signS <= 1'b0;
+            mantL <= 34'd0; mantS <= 34'd0;
+            expL  <= '0;    expS  <= '0;
 
-            done <= 0;
-            convPrevState <= 1'b0;
+            // alignment counters / temps
+            n     <= 7'd0;
+            d     <= 7'd0;
+            nTemp <= 7'd0;
+            dTemp <= 7'd0;
+            dnTemp<= 7'd0;
 
-            for (k = 0; k < depth; k = k + 1) begin
-                stack[k] <= 0;
-            end
-
-            op <= 0;
-
-            signA <= 0;
-            signB <= 0;
-            mantA <= 0;
-            mantB <= 0;
-            expA <= 0;
-            expB <= 0;
-
-            addEval <= 0;
-            subEval <= 0;
-            mulEval <= 0;
-            divEval <= 0;
-            powEval <= 0;
-            logEval <= 0;
-
-            expEval <= 0;
-            lnEval <= 0;
-            sinEval <= 0;
-            cosEval <= 0;
-            tanEval <= 0;
-
-            
+            // intermediate result regs
+            signSum <= 1'b0;
+            mantSum <= 35'd0;
+            expSum  <= '0;
         end
 
         else begin
 
-            // should i really be adding these here??
-            addEval <= 1'b0;
-            subEval <= 1'b0;
-            mulEval <= 1'b0;
-            divEval <= 1'b0;
-            powEval <= 1'b0;
-            logEval <= 1'b0;
-
-            expEval <= 1'b0;
-            lnEval <= 1'b0;
-            sinEval <= 1'b0;
-            cosEval <= 1'b0;
-            tanEval <= 1'b0;
-
-
-            //more to be added
-            //make sure ot add the eval pulses of the unary functions as well..
-
             case (state)
 
-                S_READ: begin
 
-                    if(pof < postfixSize) begin //infix top is incremented at the end of the loop
+                //added this module so that i can actually get a pulse
+                S_IDLE: begin
+                    done <= 0;
+                    if (doEval) begin
 
-                        if (isConst) begin
-                            stack[stk] <= postfix[pof];
-
-                            stk <= stk + 1;
-                            pof <= pof + 1;
+                        if(expA > expB) begin
+                            {signL, mantL, expL} <= {signA, mantA, expA};
+                            {signS, mantS, expS} <= {signB, mantB, expB};
                         end
-                        
-                        else begin
 
-                            op <= postfix[pof]; //storing the operator in reg
-                            pof <= pof + 1;
+                        else if(expA <= expB) begin
+                            {signS, mantS, expS} <= {signA, mantA, expA};
+                            {signL, mantL, expL} <= {signB, mantB, expB};
+                        end
 
-                            state <= S_OP_POP;
+
+                        state <= S_FIND_ND;
+                    end
+                end  
+                
+                S_FIND_ND: begin
+                    n <= {3'b000, nWire};
+                    d <= expL - expS;
+                    state <= S_CASE;
+
+                end
+
+                S_CASE: begin //chooe between case A or case B
+
+                    if(n >= d) begin
+
+                        dTemp <= d;
+
+                        state <= S_CASE_A;
+                    end
+                    
+                    else begin
+
+                        nTemp <= n;
+                        dnTemp <= d-n;
+
+                        state <= S_CASE_B;
+                    end
+                end
+
+
+                //case a: n>=d, so do (mantissa X 10)&(exp--) on large:  (d times)
+                S_CASE_A: begin 
+
+                    if(dTemp > 0) begin
+                        mantL <= mantL * 10; 
+                        expL <= expL - 1;
+                        dTemp <= dTemp - 1;
+                    end
+
+                    else begin
+
+                        state <= S_EVAL;
+                    end
+                end
+
+                S_CASE_B: begin
+                    if(nTemp > 0) begin
+                        mantL <= mantL * 10; 
+                        expL <= expL - 1;
+                        nTemp <= nTemp - 1;
+                    end
+
+                    if(dnTemp > 0) begin
+                        mantS <= mantS / 10; 
+                        expS <= expS + 1;
+                        dnTemp <= dnTemp - 1;
+                    end
+
+                    if(nTemp == 0 && dnTemp == 0) begin
+                        state <= S_EVAL;
+                    end
+                end
+
+
+                // since exponents are notmalized, we can just look at sign and mantissa to see which number is bigger
+                S_EVAL: begin 
+
+                    if(signL == 0 && signS == 0) begin //both positive, simple add, signSum is +v
+                   
+                        signSum <= 0; // since both are +ve, result also positive
+                        mantSum <= {1'b0, mantL} + {1'b0 ,mantS};
+                        expSum <= expL; // since normalization is done, dosent matter which exponent you give it
+                    end
+
+                    else if(signL == 1 && signS == 1) begin // Both S & L is -ve
+                        signSum <= 1; // since both are +ve, result also positive
+                        mantSum <= {1'b0, mantL} + {1'b0, mantS};
+                        expSum <= expL; // since normalization is done, dosent matter which exponent you give it
+                    end
+
+                    else if(signL == 0 && signS == 1) begin // L is +ve, S is -ve
+
+
+                        if(mantL > mantS) begin //if +ve's magnitude is larger:
+
+                            signSum <= 0; 
+                            mantSum <= {1'b0, mantL} - {1'b0, mantS};
+                            expSum <= expL;
+                        end
+
+                        else if(mantL < mantS) begin //if -ve's magnitude is larger:
                             
+                            signSum <= 1; 
+                            mantSum <= {1'b0, mantS} - {1'b0, mantL};  
+                            expSum <= expL;
                         end
+
+                        else if(mantL == mantS) begin // if both have equal magnitude
+                            
+                            signSum <= 0; 
+                            mantSum <= 0; 
+                            expSum <= 0;    //if diff is 0, make exp 0 too coz why not
+                        end
+
 
                     end
 
-                    else begin //pof >= postfixSize : Conversion is done 
+                    else if(signL == 1 && signS == 0) begin // L is -ve, S is +ve
+
+
+                        if(mantL > mantS) begin //if -ve's magnitude is larger:
+
+                            signSum <= 1; 
+                            mantSum <= {1'b0, mantL} - {1'b0, mantS};
+                            expSum <= expL;
+                        end
+
+                        else if(mantL < mantS) begin //if +ve's magnitude is larger:
+                            
+                            signSum <= 0; 
+                            mantSum <= {1'b0, mantS} - {1'b0, mantL};  
+                            expSum <= expL;
+                        end
+
+                        else if(mantL == mantS) begin // if both have equal magnitude
+                            
+                            signSum <= 0; 
+                            mantSum <= 0; 
+                            expSum <= 0;    //if diff is 0, make exp 0 too coz why not
+                        end
+
+
+                    end
+
+                    
+                    state <= S_FINALIZATION;   
+                end
+
+
+
+                S_FINALIZATION: begin // Normalizing hte intermediate regs (mant & exp)
+  
+                    if (mantSum > M_MAX) begin
+
+                        mantSum <= mantSum / 10;
+                        expSum <= expSum + 1;
+                    end
+
+                    else begin
+
+                        signRes <= signSum;
+                        mantRes <= mantSum[33 : 0];
+                        expRes <= expSum;
+                        
                         state <= S_DONE;
                     end
 
                 end
 
+                S_DONE: begin // Normalizing hte intermediate regs (mant & exp)
 
-                S_OP_POP: begin
-                    if((
-
-                        // + - * /
-                        op[7:0] == 8'h2A ||
-                        op[7:0] == 8'h2B ||
-                        op[7:0] == 8'h2C ||
-                        op[7:0] == 8'h2D ||
-
-                        // pow(x,a) & log(x,a)
-                        op[7:0] == 8'hF2 ||
-                        op[7:0] == 8'hF3
-                      
-                        ) && stk >= 2) begin // +
-
-                        signA <= stack[stk-1][41]; 
-                        mantA <= stack[stk-1][40 : 7]; 
-                        expA <= stack[stk-1][6 : 0];
-
-                        signB <= stack[stk-2][41]; 
-                        mantB <= stack[stk-2][40 : 7]; 
-                        expB <= stack[stk-2][6 : 0];
-
-                        stk <= stk - 2;
-
-                             if(op[7:0] == 8'h2A) addEval <= 1;
-                        else if(op[7:0] == 8'h2B) subEval <= 1;
-                        else if(op[7:0] == 8'h2C) mulEval <= 1;
-                        else if(op[7:0] == 8'h2D) divEval <= 1;
-                        
-                        else if(op[7:0] == 8'hF2) powEval <= 1;
-                        else if(op[7:0] == 8'hF3) logEval <= 1;
-                            
-                        // more to be added
-
-                        state <= S_WAIT;
-
-                        //to be continued
-                        
-                    end
-
-                    else if((
-
-                        // e^x & ln(x)
-                        op[7:0] == 8'hF0 ||
-                        op[7:0] == 8'hF1 ||
-
-                        //trig funcs
-                        op[7:0] == 8'hF4 ||
-                        op[7:0] == 8'hF5 ||
-                        op[7:0] == 8'hF6
-                      
-                        ) && stk >= 1) begin // +
-
-                        signA <= stack[stk-1][41]; 
-                        mantA <= stack[stk-1][40 : 7]; 
-                        expA <= stack[stk-1][6 : 0];
-
-                        stk <= stk - 1;
-
-                             if(op[7:0] == 8'hF0) expEval <= 1;
-                        else if(op[7:0] == 8'hF1) lnEval <= 1;
-
-                        else if(op[7:0] == 8'hF4) sinEval <= 1;
-                        else if(op[7:0] == 8'hF5) cosEval <= 1;
-                        else if(op[7:0] == 8'hF6) tanEval <= 1;
-
-                        
-                        // more to be added
-
-                        state <= S_WAIT;
-                        
-                    end
-
-                    else begin
-                        state <= S_IDLE; // or error state
-                    end
-
+                    done <= 1;
+                    state <= S_IDLE;
                 end
 
+                default: state <= S_IDLE;
 
-                //maybe ill use this state for 1 input functions too, ill think about it
-                S_WAIT: begin
-                    if (moduleDone) begin
-                        stack[stk] <= {2'b00, signRes, mantRes, expRes};
-                        stk <= stk + 1;
-                        state <= S_READ;
-                    end
-                end
-
-
-                S_DONE: begin
-                    
-                    answer <= stack[stk-1];
-                    done  <= 1;    
-                    state <= S_IDLE;   
-                    
-                end
-
-
-                
-                //added this module so that i can actually get a pulse
-                S_IDLE: begin
-                    done <= 0;
-                    if (doConv) begin
-                        stk   <= 0;
-                        pof   <= 0;
-                        state <= S_READ;
-                    end
-                end
-
-
-
-
-            
             endcase
-        
-            convPrevState <= conv;
+
+            evalPrevState <= eval;
         end
 
     end
