@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+//synth fail: occured due to the non converging loop in ds.sv
+//implement fail: occured coz the parent module didn't have any outputs, so vivado deleted it 
 
 module parent #(
     parameter buttons = 26,
@@ -15,8 +17,9 @@ module parent #(
     input del,
     input ptrLeft,
     input ptrRight,
-    input eval
+    input eval,
     
+    output parentOut
     
 );
 
@@ -95,5 +98,7 @@ module parent #(
         .done(done)
 
     );
+
+    assign parentOut = done;
 
 endmodule

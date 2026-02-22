@@ -53,15 +53,21 @@ module dataStructure
             ptrRightPrevState <= 0;
         end
         else begin
-        
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // INSERT
             if (doInsert && size < depth) begin
-                for (i = size; i > ptr; i = i - 1)
-                    mem[i] <= mem[i - 1];
+                // Shift items right: move mem[ptr..size-1] to mem[ptr+1..size]
+                for (i = 0; i < depth-1; i = i + 1) begin
+                    if (i >= ptr && i < size)
+                        mem[i+1] <= mem[i];
+                end
+
                 mem[ptr] <= dataIn;
                 ptr  <= ptr + 1;
                 size <= size + 1;
-            end 
+            end
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
                             
             // DELETE
             else if (doDelete && size > 0 && ptr > 0) begin
