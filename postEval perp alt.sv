@@ -20,11 +20,12 @@ module postEval #(
 
 
     typedef enum logic [2:0] {
+        
         S_READ,     
         S_OP_POP,
+        S_LAUNCH,
 
         S_WAIT,
-
         S_DONE,
         S_IDLE
     } state_t;
@@ -57,6 +58,31 @@ module postEval #(
     reg signA, signB = 0;
     reg [33:0] mantA, mantB = 0;
     reg signed [6:0] expA, expB = 0;
+
+    wire binaryOpPop = ((   // + - * /
+                            op[7:0] == 8'h2A ||
+                            op[7:0] == 8'h2B ||
+                            op[7:0] == 8'h2C ||
+                            op[7:0] == 8'h2D ||
+
+                            // pow(x,a) & log(x,a)
+                            op[7:0] == 8'hF2 ||
+                            op[7:0] == 8'hF3
+                        
+                            ) && stk >= 2);
+
+    wire unaryOpPop = ((    // e^x & ln(x)
+                            op[7:0] == 8'hF0 ||
+                            op[7:0] == 8'hF1 ||
+
+                            //trig funcs
+                            op[7:0] == 8'hF4 ||
+                            op[7:0] == 8'hF5 ||
+                            op[7:0] == 8'hF6
+                        
+                            ) && stk >= 1);
+
+    reg error = 0;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     
@@ -70,6 +96,9 @@ module postEval #(
     wire [33:0] addMantRes;
     wire signed [6:0] addExpRes;
     adder add0 (
+        .clock(clock),
+        .reset(reset),
+
         .eval(addEval),
         .done(addDone),
         .signA(signA),
@@ -89,10 +118,14 @@ module postEval #(
     wire subSignRes;
     wire [33:0] subMantRes;
     wire signed [6:0] subExpRes;
-    subber sub0 (
+    adder add1 (
+
+        .clock(clock),
+        .reset(reset),
+        
         .eval(subEval),
         .done(subDone),
-        .signA(signA),
+        .signA(~signA),
         .mantA(mantA),
         .expA(expA),
         .signB(signB),
@@ -110,6 +143,10 @@ module postEval #(
     wire [33:0] mulMantRes;
     wire signed [6:0] mulExpRes;
     multiplier mul0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(mulEval),
         .done(mulDone),
         .signA(signA),
@@ -130,6 +167,10 @@ module postEval #(
     wire [33:0] divMantRes;
     wire signed [6:0] divExpRes;
     divider div0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(divEval),
         .done(divDone),
         .signA(signA),
@@ -150,6 +191,10 @@ module postEval #(
     wire [33:0] powMantRes;
     wire signed [6:0] powExpRes;
     power pow0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(powEval),
         .done(powDone),
         .signA(signA),
@@ -170,6 +215,10 @@ module postEval #(
     wire [33:0] logMantRes;
     wire signed [6:0] logExpRes;
     logarithm log0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(logEval),
         .done(logDone),
         .signA(signA),
@@ -190,6 +239,10 @@ module postEval #(
     wire [33:0] expMantRes;
     wire signed [6:0] expExpRes;
     exponential exp0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(expEval),
         .done(expDone),
         .signA(signA),
@@ -207,6 +260,10 @@ module postEval #(
     wire [33:0] lnMantRes;
     wire signed [6:0] lnExpRes;
     naturalLog ln0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(lnEval),
         .done(lnDone),
         .signA(signA),
@@ -224,6 +281,10 @@ module postEval #(
     wire [33:0] sinMantRes;
     wire signed [6:0] sinExpRes;
     sine sin0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(sinEval),
         .done(sinDone),
         .signA(signA),
@@ -241,6 +302,10 @@ module postEval #(
     wire [33:0] cosMantRes;
     wire signed [6:0] cosExpRes;
     cosine cos0 (
+
+        .clock(clock),
+        .reset(reset),
+        
         .eval(cosEval),
         .done(cosDone),
         .signA(signA),
@@ -258,6 +323,10 @@ module postEval #(
     wire [33:0] tanMantRes;
     wire signed [6:0] tanExpRes;
     tangent tan0 (
+
+        .clock(clock),
+        .reset(reset),
+
         .eval(tanEval),
         .done(tanDone),
         .signA(signA),
@@ -353,6 +422,8 @@ module postEval #(
             cosEval <= 0;
             tanEval <= 0;
 
+            error <= 0;
+
             
         end
 
@@ -401,20 +472,11 @@ module postEval #(
 
                 end
 
+
+
+
                 S_OP_POP: begin
-                    if((
-
-                        // + - * /
-                        op[7:0] == 8'h2A ||
-                        op[7:0] == 8'h2B ||
-                        op[7:0] == 8'h2C ||
-                        op[7:0] == 8'h2D ||
-
-                        // pow(x,a) & log(x,a)
-                        op[7:0] == 8'hF2 ||
-                        op[7:0] == 8'hF3
-                      
-                        ) && stk >= 2) begin // +
+                    if(binaryOpPop) begin // +
 
                         signA <= stack[stk-1][41]; 
                         mantA <= stack[stk-1][40 : 7]; 
@@ -424,56 +486,20 @@ module postEval #(
                         mantB <= stack[stk-2][40 : 7]; 
                         expB <= stack[stk-2][6 : 0];
 
-                        stk <= stk - 2;
-
-                        if(op[7:0] == 8'h2A) addEval <= 1;
-
-                        else if(op[7:0] == 8'h2B) subEval <= 1;
-                        else if(op[7:0] == 8'h2C) mulEval <= 1;
-                        else if(op[7:0] == 8'h2D) divEval <= 1;
+                        stk <= stk - 2;     
                         
-                        else if(op[7:0] == 8'hF2) powEval <= 1;
-                        else if(op[7:0] == 8'hF3) logEval <= 1;
-                            
-                        // more to be added
-
-                        state <= S_WAIT;
-
-                        //to be continued
-                        
+                        state <= S_LAUNCH;
                     end
 
-                    else if((
-
-                        // e^x & ln(x)
-                        op[7:0] == 8'hF0 ||
-                        op[7:0] == 8'hF1 ||
-
-                        //trig funcs
-                        op[7:0] == 8'hF4 ||
-                        op[7:0] == 8'hF5 ||
-                        op[7:0] == 8'hF6
-                      
-                        ) && stk >= 1) begin // +
+                    else if(unaryOpPop) begin // +
 
                         signA <= stack[stk-1][41]; 
                         mantA <= stack[stk-1][40 : 7]; 
                         expA <= stack[stk-1][6 : 0];
 
-                        stk <= stk - 1;
-
-                             if(op[7:0] == 8'hF0) expEval <= 1;
-                        else if(op[7:0] == 8'hF1) lnEval <= 1;
-
-                        else if(op[7:0] == 8'hF4) sinEval <= 1;
-                        else if(op[7:0] == 8'hF5) cosEval <= 1;
-                        else if(op[7:0] == 8'hF6) tanEval <= 1;
-
+                        stk <= stk - 1; 
                         
-                        // more to be added
-
-                        state <= S_WAIT;
-                        
+                        state <= S_LAUNCH;
                     end
 
                     else begin
@@ -483,12 +509,51 @@ module postEval #(
                 end
 
 
+
+
+
+                S_LAUNCH: begin
+
+                    error <= 0;
+                    // + - * /
+                    if(op[7:0] == 8'h2A) addEval <= 1;
+                    else if(op[7:0] == 8'h2B) subEval <= 1;
+                    else if(op[7:0] == 8'h2C) mulEval <= 1;
+                    else if(op[7:0] == 8'h2D) divEval <= 1;
+                    
+                    // pow log
+                    else if(op[7:0] == 8'hF2) powEval <= 1;
+                    else if(op[7:0] == 8'hF3) logEval <= 1;
+
+                    // exp ln
+                    else if(op[7:0] == 8'hF0) expEval <= 1;
+                    else if(op[7:0] == 8'hF1) lnEval <= 1;
+
+                    // trig
+                    else if(op[7:0] == 8'hF4) sinEval <= 1;
+                    else if(op[7:0] == 8'hF5) cosEval <= 1;
+                    else if(op[7:0] == 8'hF6) tanEval <= 1;
+                    
+                    // failure:
+                    else error <= 1;
+
+                    state <= S_WAIT;
+                    
+
+                end
+
+
                 S_WAIT: begin
-                    if (moduleDone) begin
+
+                    if(error) state <= S_IDLE;
+
+                    else if(moduleDone) begin
                         stack[stk] <= {2'b00, signRes, mantRes, expRes};
                         stk <= stk + 1;
                         state <= S_READ;
                     end
+
+                    
                 end
 
                 S_DONE: begin
@@ -502,7 +567,9 @@ module postEval #(
                 //added this module so that i can actually get a pulse
                 S_IDLE: begin
                     done <= 0;
+                    error <= 0;
                     if (doConv) begin
+                        error <= 0;
                         stk   <= 0;
                         pof   <= 0;
                         state <= S_READ;
