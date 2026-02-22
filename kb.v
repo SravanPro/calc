@@ -1,11 +1,15 @@
 `timescale 1ns / 1ps
 
 module keyboard #(
-    parameter width = 8
+    parameter width = 8,
+    parameter buttons = 16
 )(
     input clock, reset,
 
-    input  [15:0] b,        // 0-9 digits, operators
+    input  [buttons - 1 : 0] b,        
+    // 0-9 : digits
+    //10, 11, 12, 13 :  add, sub, mul , div
+    //14, 15: left bracket, right bracket
     input  del,
     input  ptrLeft,
     input  ptrRight,
@@ -35,15 +39,17 @@ module keyboard #(
     always @(*) begin
         key_valid = 0;
         key_code  = 0;
-        for (i = 0; i < 16; i = i + 1) begin
+        for (i = 0; i < buttons; i = i + 1) begin
             if (b[i] && !key_valid) begin  
                 key_valid = 1;
                 case (i)
                     0,1,2,3,4,5,6,7,8,9: key_code = i;
+                    
                     10: key_code = OP_ADD;
                     11: key_code = OP_SUB;
                     12: key_code = OP_MUL;
                     13: key_code = OP_DIV;
+                    
                     14: key_code = OP_LB;
                     15: key_code = OP_RB;
                 endcase
