@@ -6,7 +6,7 @@ module builderTB;
   localparam int BUTTONS  = 26;
   localparam int DEPTH    = 12;     // as requested
   localparam int WIDTH    = 8;
-  localparam int NEWWIDTH = 42;
+  localparam int NEWWIDTH = 44;
 
   // ----- DUT inputs -----
   reg clock;

@@ -5,7 +5,7 @@ module parent #(
 
     parameter depth = 20,
     parameter width = 8,
-    parameter newWidth = 42
+    parameter newWidth = 44
     
 )(
     input clock,

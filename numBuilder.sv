@@ -3,10 +3,15 @@
 
 //i only took chatgpt help in cases where i had to put in guarding helpers, as they
 // can prevent errors i couldnt have forseen, only possible with the help of chat
+
+// identifier: 
+// 00: number 
+// 01: operator/func/bracket/etc
+
 module numBuilder #(
     parameter depth = 10,
     parameter width = 8,
-    parameter newWidth = 42
+    parameter newWidth = 44 //used to be 42, 
 )(
     input wire clock,
     input wire reset,
@@ -34,16 +39,16 @@ module numBuilder #(
     reg seenDot  = 0;
 
     
-    reg running  = 0;  // keeps module active after doEval pulse
+    reg running  = 0;  // when it's 1: it keeps module active after doEval pulse
     reg running_prev;
 
-    reg building = 0;  // currently inside a number token
+    reg building = 0;  // indicates if we are currently inside a number token
 
     integer k;
 
     // helpers
 
-    //guard: only read memIn[i] when i is in range of the memIn's size
+    //guard: only read memIn[i] when i is in range of the input and output memory's sizes
     wire i_valid = (i < size) && (i < depth);
 
     //basically a validified memIn[i]
@@ -81,14 +86,17 @@ module numBuilder #(
         else begin
 
             done <= 1'b0;
+            
+            evalPrevState <= eval;
+
             running_prev <= running;
             if (running_prev && !running) begin
                 done <= 1'b1;
             end
 
-            evalPrevState <= eval;
+            
 
-            // start a run on eval pulse, basically initiala setup
+            // start a run on eval pulse, basically initiala setup, happens in the 1st cc
             if (doEval) begin
 
                 running_prev <= 1'b0;
@@ -111,7 +119,7 @@ module numBuilder #(
                 if ((i >= size) || (i >= depth)) begin
 
                     if (building && (newSize < depth)) begin
-                        memOut[newSize] <= {sign, mantissa, exp};
+                        memOut[newSize] <= {2'b00, sign, mantissa, exp};
                         newSize <= newSize + 1'b1;
                     end
 
@@ -152,16 +160,16 @@ module numBuilder #(
 
 
                             if (newSize < depth) begin //flushing number
-                                memOut[newSize] <= {sign, mantissa, exp};
+                                memOut[newSize] <= {2'b00, sign, mantissa, exp};
                             end
 
                             if ((newSize + 1) < depth) begin //then flushing constant
 
                                 if(isConstE) begin
-                                    memOut[newSize + 1] <=  {1'b0, 34'd2718281828, -7'sd9};
+                                    memOut[newSize + 1] <=  {2'b00, 1'b0, 34'd2718281828, -7'sd9};
                                 end
                                 else if(isConstPi) begin
-                                    memOut[newSize + 1] <= {1'b0, 34'd3141592653, -7'sd9};
+                                    memOut[newSize + 1] <= {2'b00, 1'b0, 34'd3141592653, -7'sd9};
                                 end
 
                             end
@@ -182,10 +190,10 @@ module numBuilder #(
                             // if we were NOT in hte middle of building anumber, and if we hit a constanat:
                             if (newSize < depth) begin
                                 if(isConstE) begin
-                                    memOut[newSize] <=  {1'b0, 34'd2718281828, -7'sd9};
+                                    memOut[newSize] <=  {2'b00, 1'b0, 34'd2718281828, -7'sd9};
                                 end
                                 else if(isConstPi) begin
-                                    memOut[newSize] <= {1'b0, 34'd3141592653, -7'sd9};
+                                    memOut[newSize] <= {2'b00, 1'b0, 34'd3141592653, -7'sd9};
                                 end
                             end
                             newSize <= newSize + 1'b1;
@@ -194,16 +202,17 @@ module numBuilder #(
                     end
 
 
-
                     // Case 3: if token is an operator/func/bracket/etc
                     else begin
-                        // If we were building a number, and then hit an operator, then flush number 
+                        // If we were building a number, and then hit an operator, 
+                        //1. flush number
+                        //2. flush operator 
                         if (building) begin
                             if (newSize < depth) begin
-                                memOut[newSize] <= {sign, mantissa, exp};
+                                memOut[newSize] <= {2'b00, sign, mantissa, exp}; // number flushed
                             end
                             if ((newSize + 1) < depth) begin
-                                memOut[newSize + 1] <= {34'b0, tok}; // operator token padded
+                                memOut[newSize + 1] <= {2'b01, 34'b0, tok}; // operator and flushed
                             end
 
                             newSize <= newSize + 2; //+2 coz number, and operator, both are being flushed
@@ -220,23 +229,13 @@ module numBuilder #(
                         else begin
                             // if we were NOT in hte middle of building anumber, and if we hit an operator:
                             if (newSize < depth) begin
-                                memOut[newSize] <= {34'b0, tok};
+                                memOut[newSize] <= {2'b01, 34'b0, tok};
                             end
                             newSize <= newSize + 1'b1;
                             i <= i + 1'b1;
                         end
                     end
-
-
-
-
-
-
                 end
-
-
-
-
             end
         end
     end
