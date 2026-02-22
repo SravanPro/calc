@@ -9,11 +9,12 @@ module ds
         input clock, reset,
         input [width-1 : 0] dataIn,
         input insert, del,
-        input ptrLeft, ptrRight
+        input ptrLeft, ptrRight,
+        
+        output reg [width-1 : 0] mem [depth-1 : 0]
     );
     
     // memory
-    reg [width-1 : 0] mem [depth-1 : 0];
 
     // regs
     reg insertPrevState   = 0;

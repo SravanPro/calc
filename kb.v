@@ -5,7 +5,7 @@ module keyboard #(
 )(
     input clock, reset,
 
-    input  [15:0] b,        // 0-9 digits 10:+ 11:- 12:* 13:/ 14:( 15:)
+    input  [15:0] b,        // 0-9 digits, operators
     input  del,
     input  ptrLeft,
     input  ptrRight,
@@ -27,21 +27,16 @@ module keyboard #(
     localparam OP_LB  = 8'hA4;
     localparam OP_RB  = 8'hA5;
 
-    reg [15:0] b_prev;
-    reg del_prev, ptrLeft_prev, ptrRight_prev, eval_prev;
-
     reg key_valid;
     reg [width-1:0] key_code;
-
     integer i;
 
-    // combinational encoder
+    // Combinational Encoder (Same as before)
     always @(*) begin
-        key_valid = 0;      //"Is any key pressed right now (after encoding)?"
-        key_code  = 0;  
-
+        key_valid = 0;
+        key_code  = 0;
         for (i = 0; i < 16; i = i + 1) begin
-            if (b[i] && !key_valid) begin  //First pressed key wins
+            if (b[i] && !key_valid) begin  
                 key_valid = 1;
                 case (i)
                     0,1,2,3,4,5,6,7,8,9: key_code = i;
@@ -56,7 +51,7 @@ module keyboard #(
         end
     end
 
-    // edge detect + pulse gen
+    // Sequential Block: CHANGED to "Pass-Through" logic
     always @(posedge clock) begin
         if (reset) begin
             insert <= 0;
@@ -64,35 +59,26 @@ module keyboard #(
             ptrLeft_pulse <= 0;
             ptrRight_pulse <= 0;
             eval_pulse <= 0;
-
-            b_prev <= 0;
-            del_prev <= 0;
-            ptrLeft_prev <= 0;
-            ptrRight_prev <= 0;
-            eval_prev <= 0;
+            dataIn <= 0;
         end
         else begin
-            insert <= 0;
-            del_pulse <= 0;
-            ptrLeft_pulse <= 0;
-            ptrRight_pulse <= 0;
-            eval_pulse <= 0;
-                                        //OR all bits of b_prev, checks if no key was pressed in the previous cycle
-            if (key_valid && !(|b_prev)) begin
+            // 1. DATA PATH
+            // Just pass the key code whenever valid. 
+            // The DS module decides *when* to latch it (on the rising edge of insert).
+            if (key_valid) begin
                 dataIn <= key_code;
-                insert <= 1;
             end
 
-            if (del && !del_prev)           del_pulse <= 1;
-            if (ptrLeft && !ptrLeft_prev)   ptrLeft_pulse <= 1;
-            if (ptrRight && !ptrRight_prev) ptrRight_pulse <= 1;
-            if (eval && !eval_prev)         eval_pulse <= 1;
-
-            b_prev <= b;
-            del_prev <= del;
-            ptrLeft_prev <= ptrLeft;
-            ptrRight_prev <= ptrRight;
-            eval_prev <= eval;
+            // 2. CONTROL PATH
+            // Remove the edge detection here (!prev). 
+            // Just output HIGH if the button is pressed.
+            // The DS module's internal edge detector will handle the "Write Once" logic.
+            
+            insert <= key_valid;       // Output High as long as key is held
+            del_pulse <= del;          // Output High as long as del is held
+            ptrLeft_pulse <= ptrLeft;  
+            ptrRight_pulse <= ptrRight;
+            eval_pulse <= eval;
         end
     end
 
