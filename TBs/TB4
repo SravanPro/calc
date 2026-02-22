@@ -18,6 +18,8 @@ module fullTB4;
   
   wire [NEWWIDTH-1:0] answer;
   wire done3;
+  
+  wire mosi, sclk, cs;
 
   // DUT
   parent #(
@@ -35,7 +37,11 @@ module fullTB4;
     .eval(eval),
     
     .answer(answer),
-    .done(done3)
+    .done(done3),
+    
+    .mosi(mosi),
+    .sclk(sclk),
+    .cs(cs)
   );
 
   // clock

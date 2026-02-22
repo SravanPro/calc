@@ -13,7 +13,7 @@ module adder(
 
     output reg signRes,
     output reg [33:0] mantRes,
-    output signed reg [6:0] expRes
+    output reg signed  [6:0] expRes
 );
 
 

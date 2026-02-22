@@ -34,10 +34,11 @@ module keyboard #(
     
     
     
-    input  del,
-    input  ptrLeft,
-    input  ptrRight,
-    input  eval,
+    input del,
+    input ptrLeft,
+    input ptrRight,
+    input jump,
+    input eval,
 
     output reg [width-1:0] dataIn,
     output reg insert,

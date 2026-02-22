@@ -1,9 +1,11 @@
 `timescale 1ns / 1ps
 
 module parent #(
-    parameter buttons = 27,
 
-    parameter depth = 20,
+    
+    parameter buttons = 27,
+    parameter page = 16, // for the SPI interface
+    parameter depth = 32,
     parameter width = 8,
     parameter newWidth = 44
     
@@ -11,15 +13,19 @@ module parent #(
     input clock,
     input reset,
 
-   input  [buttons - 1 : 0] b,
+    input  [buttons - 1 : 0] b,
     input del,
     input ptrLeft,
     input ptrRight,
+    input jump,
     input eval,
     
     //postfix evaluator -> parent output
     output [newWidth-1:0] answer,
-    output done //pulse
+    output done, //pulse
+    output sclk,
+    output mosi,
+    output cs
     
 );
 
@@ -35,6 +41,7 @@ module parent #(
 
     //ds -> numBuilder wires
     wire [$clog2(depth+1)-1:0] sizeOut;
+    wire [$clog2(depth+1)-1:0] ptrOut;
     wire [width-1 : 0] mem [depth-1 : 0];
 
     //numBuilder -> infixToPostfix wires
@@ -62,6 +69,7 @@ module parent #(
         .del(del),
         .ptrLeft(ptrLeft),
         .ptrRight(ptrRight),
+        .jump(jump),
         .eval(eval),
         .dataIn(dataIn),
         .insert(insert_pulse),
@@ -85,7 +93,8 @@ module parent #(
         .ptrRight(ptrRight_pulse),
         
         .mem(mem),
-        .sizeOut(sizeOut)
+        .sizeOut(sizeOut),
+        .ptrOut(ptrOut)
     );
 
     // numBuilder instance
@@ -139,8 +148,29 @@ module parent #(
 
         .answer(answer),
         
-        .done(done3)
+        .done(done)
 
     );
 
+    spiInterface#(
+        
+        .buttons(buttons) ,
+        .page(page) ,
+        .depth(depth) ,
+        .width(width) ,
+        .newWidth(newWidth) 
+    ) spi (
+        .clock(clock),
+        .reset(reset),
+        .jump(jump),
+        .answer(answer),
+        .mem(mem),
+        .sizeOut(sizeOut),
+        .ptrOut(ptrOut),
+        .sclk(sclk),
+        .mosi(mosi),
+        .cs(cs)
+
+
+    );
 endmodule

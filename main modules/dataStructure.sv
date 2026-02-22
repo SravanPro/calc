@@ -4,15 +4,16 @@ module dataStructure
     #(
         parameter depth = 20,
         parameter width = 8
-     ) 
-     (
+     )(
         input clock, reset,
         input [width-1 : 0] dataIn,
         input insert, del,
         input ptrLeft, ptrRight,
         
         output reg [width-1 : 0] mem [depth-1 : 0],
-        output [$clog2(depth+1)-1:0] sizeOut
+
+        output [$clog2(depth+1)-1:0] sizeOut,
+        output [$clog2(depth+1)-1:0] ptrOut
 
     );
     
@@ -36,6 +37,7 @@ module dataStructure
     
 
     assign sizeOut = size;
+    assign ptrOut = ptr;
 
     
 
