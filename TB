@@ -1,0 +1,215 @@
+`timescale 1ns/1ps
+
+module fullTB2;
+
+  localparam int BUTTONS  = 27;
+  localparam int DEPTH    = 60;     // Increased depth for longer expression
+  localparam int WIDTH    = 8;
+  localparam int NEWWIDTH = 44;
+
+  reg clock;
+  reg reset;
+
+  reg [BUTTONS-1:0] b;
+  reg del;
+  reg ptrLeft;
+  reg ptrRight;
+  reg eval;
+  
+  wire [NEWWIDTH-1:0] answer;
+  wire done3;
+
+  // DUT
+  parent #(
+    .buttons(BUTTONS),
+    .depth(DEPTH),
+    .width(WIDTH),
+    .newWidth(NEWWIDTH)
+  ) uut (
+    .clock(clock),
+    .reset(reset),
+    .b(b),
+    .del(del),
+    .ptrLeft(ptrLeft),
+    .ptrRight(ptrRight),
+    .eval(eval),
+    
+    .answer(answer),
+    .done(done3)
+  );
+
+  // clock
+  initial clock = 1'b0;
+  always #5 clock = ~clock;
+
+  // press helpers (press 2 clocks, release 2 clocks)
+  task automatic press_b_button(input int idx);
+    begin
+      b = '0;
+      b[idx] = 1'b1;
+      repeat (2) @(posedge clock);
+
+      b = '0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  task automatic press_eval;
+    begin
+      eval = 1'b1;
+      repeat (2) @(posedge clock);
+      eval = 1'b0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  // stimulus
+  initial begin
+    b = '0;
+    del = 1'b0;
+    ptrLeft = 1'b0;
+    ptrRight = 1'b0;
+    eval = 1'b0;
+
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // ==========================================
+    // PHASE 1: 32842.48034 - 3480.3290 * pi
+    // ==========================================
+    
+    // Type "32842.48034"
+    press_b_button(3); press_b_button(2); press_b_button(8); press_b_button(4); press_b_button(2);
+    press_b_button(16); // .
+    press_b_button(4); press_b_button(8); press_b_button(0); press_b_button(3); press_b_button(4);
+
+    // Type " - 3480.3290"
+    press_b_button(12); // -
+    press_b_button(3); press_b_button(4); press_b_button(8); press_b_button(0);
+    press_b_button(16); // .
+    press_b_button(3); press_b_button(2); press_b_button(9); press_b_button(0);
+
+    // Type " + pi"
+    press_b_button(12); // *
+    press_b_button(19); // pi
+
+    // Evaluate 1
+    press_eval();
+    
+    #2000; // Wait for calc to finish
+
+    // ==========================================
+    // PHASE 2: RESET AND RETYPE
+    // ==========================================
+    
+    // "then reset"
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // "put in the exact same expression in manually"
+    // (Copy-paste of Phase 1 typing)
+    press_b_button(3); press_b_button(2); press_b_button(8); press_b_button(4); press_b_button(2);
+    press_b_button(16); // .
+    press_b_button(4); press_b_button(8); press_b_button(0); press_b_button(3); press_b_button(4);
+    press_b_button(11); // -
+    press_b_button(3); press_b_button(4); press_b_button(8); press_b_button(0);
+    press_b_button(16); // .
+    press_b_button(3); press_b_button(2); press_b_button(9); press_b_button(0);
+    press_b_button(12); // *
+    press_b_button(19); // pi
+
+    // ==========================================
+    // PHASE 3: POINTER MOVEMENT & EDITING
+    // ==========================================
+
+    // At this point, cursor is at the very end.
+    // Expression len: 
+    // 32842.48034 (11 chars)
+    // - (1 char)
+    // 3480.3290 (9 chars)
+    // + (1 char)
+    // pi (1 char)
+    // Total = 23 chars. Cursor is at pos 23.
+
+    // Target: "point to the first 4 from the left (on 32842)"
+    // Indices: 3, 2, 8, 4, 2
+    // We want to delete '4' and '8'.
+    // To delete '4' via backspace, we need cursor at index 4 (after the 4).
+    // Current pos: 23. Target pos: 4.
+    // Moves needed: 23 - 4 = 19 Left clicks.
+
+    repeat(19) begin
+        ptrLeft = 1'b1;
+        repeat (2) @(posedge clock);
+        ptrLeft = 1'b0;
+        repeat (2) @(posedge clock);
+    end
+
+    // Now at pos 4 (between '4' and '2'). 
+    // Text: 3 2 8 4 | 2 . ...
+    
+    // "then delete 2 numbers ... delete 4, then 8"
+    
+    // Delete 1 (removes '4')
+    del = 1'b1;
+    repeat (2) @(posedge clock);
+    del = 1'b0;
+    repeat (2) @(posedge clock);
+    
+    // Text: 3 2 8 | 2 . ...
+
+    // Delete 2 (removes '8')
+    del = 1'b1;
+    repeat (2) @(posedge clock);
+    del = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // Text: 3 2 | 2 . ... -> "322.48034"
+
+    // "go to the extreme right again"
+    // New length is 23 - 2 = 21.
+    // Current pos is 2. Target is 21.
+    // Moves needed: 19 Right clicks.
+
+    repeat(19) begin
+        ptrRight = 1'b1;
+        repeat (2) @(posedge clock);
+        ptrRight = 1'b0;
+        repeat (2) @(posedge clock);
+    end
+
+    // ==========================================
+    // PHASE 4: APPEND NEW EXPRESSION
+    // ==========================================
+    // "+( e - (0 - 3199.2077) + pi)"
+    
+    press_b_button(10); // +
+    press_b_button(14); // (
+    press_b_button(18); // e
+    press_b_button(11); // -
+    press_b_button(14); // (
+    press_b_button(0);  // 0
+    press_b_button(11); // -
+    
+    // 3199.2077
+    press_b_button(3); press_b_button(1); press_b_button(9); press_b_button(9);
+    press_b_button(16); // .
+    press_b_button(2); press_b_button(0); press_b_button(7); press_b_button(7);
+    
+    press_b_button(15); // )
+    press_b_button(10); // +
+    press_b_button(19); // pi
+    press_b_button(15); // )
+
+    // Final Evaluate
+    press_eval();
+
+    #3000;
+    $finish;
+  end
+
+endmodule

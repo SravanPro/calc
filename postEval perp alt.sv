@@ -89,7 +89,7 @@ module postEval #(
     // Function Modules
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // ---------- ADD ----------
+    // ---------- ADD ---------- sub also done in the same module
     reg addEval;
     wire addDone;
     wire addSignRes;
@@ -112,29 +112,6 @@ module postEval #(
         .expRes(addExpRes)
     );
 
-    // ---------- SUB ----------
-    reg subEval;
-    wire subDone;
-    wire subSignRes;
-    wire [33:0] subMantRes;
-    wire signed [6:0] subExpRes;
-    adder add1 (
-
-        .clock(clock),
-        .reset(reset),
-        
-        .eval(subEval),
-        .done(subDone),
-        .signA(~signA),
-        .mantA(mantA),
-        .expA(expA),
-        .signB(signB),
-        .mantB(mantB),
-        .expB(expB),
-        .signRes(subSignRes),
-        .mantRes(subMantRes),
-        .expRes(subExpRes)
-    );
 
     // ---------- MUL ----------
     reg mulEval;
@@ -142,23 +119,23 @@ module postEval #(
     wire mulSignRes;
     wire [33:0] mulMantRes;
     wire signed [6:0] mulExpRes;
-    // multiplier mul0 (
+    multiplier mul0 (
 
-    //     .clock(clock),
-    //     .reset(reset),
+        .clock(clock),
+        .reset(reset),
 
-    //     .eval(mulEval),
-    //     .done(mulDone),
-    //     .signA(signA),
-    //     .mantA(mantA),
-    //     .expA(expA),
-    //     .signB(signB),
-    //     .mantB(mantB),
-    //     .expB(expB),
-    //     .signRes(mulSignRes),
-    //     .mantRes(mulMantRes),
-    //     .expRes(mulExpRes)
-    // );
+        .eval(mulEval),
+        .done(mulDone),
+        .signA(signA),
+        .mantA(mantA),
+        .expA(expA),
+        .signB(signB),
+        .mantB(mantB),
+        .expB(expB),
+        .signRes(mulSignRes),
+        .mantRes(mulMantRes),
+        .expRes(mulExpRes)
+    );
 
     // ---------- DIV ----------
     reg divEval;
@@ -166,23 +143,23 @@ module postEval #(
     wire divSignRes;
     wire [33:0] divMantRes;
     wire signed [6:0] divExpRes;
-    // divider div0 (
+    divider div0 (
 
-    //     .clock(clock),
-    //     .reset(reset),
+        .clock(clock),
+        .reset(reset),
 
-    //     .eval(divEval),
-    //     .done(divDone),
-    //     .signA(signA),
-    //     .mantA(mantA),
-    //     .expA(expA),
-    //     .signB(signB),
-    //     .mantB(mantB),
-    //     .expB(expB),
-    //     .signRes(divSignRes),
-    //     .mantRes(divMantRes),
-    //     .expRes(divExpRes)
-    // );
+        .eval(divEval),
+        .done(divDone),
+        .signA(signA),
+        .mantA(mantA),
+        .expA(expA),
+        .signB(signB),
+        .mantB(mantB),
+        .expB(expB),
+        .signRes(divSignRes),
+        .mantRes(divMantRes),
+        .expRes(divExpRes)
+    );
 
     // ---------- POW ----------
     reg powEval;
@@ -358,7 +335,7 @@ module postEval #(
 
     unique case (op[7:0])
         8'h2A: begin moduleDone=addDone; signRes=addSignRes; mantRes=addMantRes; expRes=addExpRes; end
-        8'h2B: begin moduleDone=subDone; signRes=subSignRes; mantRes=subMantRes; expRes=subExpRes; end
+        8'h2B: begin moduleDone=addDone; signRes=addSignRes; mantRes=addMantRes; expRes=addExpRes; end
         8'h2C: begin moduleDone=mulDone; signRes=mulSignRes; mantRes=mulMantRes; expRes=mulExpRes; end
         8'h2D: begin moduleDone=divDone; signRes=divSignRes; mantRes=divMantRes; expRes=divExpRes; end
 
@@ -412,7 +389,6 @@ module postEval #(
             expB <= 0;
 
             addEval <= 0;
-            subEval <= 0;
             mulEval <= 0;
             divEval <= 0;
             powEval <= 0;
@@ -433,7 +409,6 @@ module postEval #(
 
         //resetting eval pins
             addEval <= 1'b0;
-            subEval <= 1'b0;
             mulEval <= 1'b0;
             divEval <= 1'b0;
             powEval <= 1'b0;
@@ -480,7 +455,20 @@ module postEval #(
                 S_OP_POP: begin
                     if(binaryOpPop) begin // +
 
-                        signA <= stack[stk-1][41]; 
+                        if(op[7:0] == 8'h2A) begin
+                            signA <= stack[stk-1][41];
+                        end
+
+                        else if(op[7:0] == 8'h2B) begin
+                            signA <= ~stack[stk-1][41];
+                        end
+
+                        else begin  // for now, all of them will work as normal
+                            signA <= stack[stk-1][41];
+                        end
+
+                        
+                         
                         mantA <= stack[stk-1][40 : 7]; 
                         expA <= stack[stk-1][6 : 0];
 
@@ -518,8 +506,7 @@ module postEval #(
 
                     error <= 0;
                     // + - * /
-                    if(op[7:0] == 8'h2A) addEval <= 1;
-                    else if(op[7:0] == 8'h2B) subEval <= 1;
+                    if(op[7:0] == 8'h2A || op[7:0] == 8'h2B) addEval <= 1;
                     else if(op[7:0] == 8'h2C) mulEval <= 1;
                     else if(op[7:0] == 8'h2D) divEval <= 1;
                     

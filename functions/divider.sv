@@ -19,25 +19,29 @@ module divider(
 
     output reg signRes,
     output reg [33:0] mantRes,
-    output signed reg [6:0] expRes
+    output reg signed [6:0] expRes
 );
 
+    // in division,  the mantX is made 74 bits
 
-    localparam [34:0] M_MAX = 68'd17179869183;
+    localparam [73:0] M_MAX = 74'd17179869183;
+    localparam [39:0] SCALING_FACTOR = 40'd1000000000000; 
+
     reg signX = 0;
     reg signY = 0;
     reg [33:0] mantX = 0;
-    reg [33:0] mantY = 0;
+    reg [73:0] mantY = 0;
     reg signed [6:0] expX = 0;
     reg signed [6:0] expY = 0;
 
     //intermediate non normalized Sum and Exponents
     reg signDiv; //actually dont need this, but writing anyway to group these 3 
-    reg [67:0] mantDiv; 
+    reg [73:0] mantDiv; 
     reg signed [6:0] expDiv; 
     
 
     
+
 
     typedef enum logic [1:0] {
     S_IDLE          = 2'd0,
@@ -64,7 +68,7 @@ module divider(
 
             // intermediate result regs
             signDiv <= 1'b0;
-            mantDiv <= 68'd0;
+            mantDiv <= 74'd0;
             expDiv  <= '0;
 
             // outputs
@@ -75,7 +79,7 @@ module divider(
 
             // latched operands
             signX <= 1'b0;  signY <= 1'b0;
-            mantX <= 34'd0; mantY <= 34'd0;
+            mantX <= 34'd0; mantY <= 74'd0;
             expX  <= '0;    expY  <= '0;
 
 
@@ -89,9 +93,14 @@ module divider(
                 S_IDLE: begin
                     done <= 0;
                     if (doEval) begin
+                                                  
+                        signY <= signB;
+                        mantY <= {{40'd0, mantB} * {34'b0,SCALING_FACTOR}};
+                        expY  <= expB - 7'sd12;
 
-                        {signX, mantX, expX} <= {signA, mantA, expA};
-                        {signY, mantY, expY} <= {signB, mantB, expB};
+                        signX <= signA;
+                        mantX <= mantA;
+                        expX  <= expA;
 
                         state <= S_EVAL;
                     end
@@ -100,8 +109,8 @@ module divider(
                 S_EVAL: begin 
 
                     signDiv <= signX ^ signY;
-                    mantDiv <= mantX / mantY;
-                    expDiv <= expX - expY;
+                    mantDiv <= mantY / mantX;
+                    expDiv <= expY - expX;
                     
                     state <= S_FINALIZATION;   
                 end
@@ -127,7 +136,7 @@ module divider(
 
                 end
 
-                S_DONE: begin // Normalizing hte intermediate regs (mant & exp)
+                S_DONE: begin
 
                     done <= 1;
                     state <= S_IDLE;

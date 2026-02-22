@@ -1,0 +1,216 @@
+`timescale 1ns/1ps
+
+module fullTB4;
+
+  localparam int BUTTONS  = 27;
+  localparam int DEPTH    = 50;
+  localparam int WIDTH    = 8;
+  localparam int NEWWIDTH = 44;
+
+  reg clock;
+  reg reset;
+
+  reg [BUTTONS-1:0] b;
+  reg del;
+  reg ptrLeft;
+  reg ptrRight;
+  reg eval;
+  
+  wire [NEWWIDTH-1:0] answer;
+  wire done3;
+
+  // DUT
+  parent #(
+    .buttons(BUTTONS),
+    .depth(DEPTH),
+    .width(WIDTH),
+    .newWidth(NEWWIDTH)
+  ) uut (
+    .clock(clock),
+    .reset(reset),
+    .b(b),
+    .del(del),
+    .ptrLeft(ptrLeft),
+    .ptrRight(ptrRight),
+    .eval(eval),
+    
+    .answer(answer),
+    .done(done3)
+  );
+
+  // clock
+  initial clock = 1'b0;
+  always #5 clock = ~clock;
+
+  // press helpers
+  task automatic press_b_button(input int idx);
+    begin
+      b = '0;
+      b[idx] = 1'b1;
+      repeat (2) @(posedge clock);
+
+      b = '0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  task automatic press_eval;
+    begin
+      eval = 1'b1;
+      repeat (2) @(posedge clock);
+      eval = 1'b0;
+      repeat (2) @(posedge clock);
+    end
+  endtask
+
+  // stimulus
+  initial begin
+    // Init
+    b = '0;
+    del = 1'b0;
+    ptrLeft = 1'b0;
+    ptrRight = 1'b0;
+    eval = 1'b0;
+
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // =========================================================================================
+    // PHASE 1: 493.324 - ( e / (490.3240348 / 10381.8034 - pi*pi + e * e))
+    // Key Logic: Uses () keys at indices 14 and 15
+    // =========================================================================================
+    
+    // "493.324"
+    press_b_button(4); press_b_button(9); press_b_button(3);
+    press_b_button(16); // .
+    press_b_button(3); press_b_button(2); press_b_button(4);
+
+    // "- ("
+    press_b_button(11); // -
+    press_b_button(14); // (
+    
+    // "e / ("
+    press_b_button(18); // e
+    press_b_button(13); // /
+    press_b_button(14); // (
+    
+    // "490.3240348 / 10381.8034"
+    press_b_button(4); press_b_button(9); press_b_button(0);
+    press_b_button(16); // .
+    press_b_button(3); press_b_button(2); press_b_button(4); 
+    press_b_button(0); press_b_button(3); press_b_button(4); press_b_button(8);
+    
+    press_b_button(13); // /
+    
+    press_b_button(1); press_b_button(0); press_b_button(3); press_b_button(8); press_b_button(1);
+    press_b_button(16); // .
+    press_b_button(8); press_b_button(0); press_b_button(3); press_b_button(4);
+    
+    // "- pi * pi"
+    press_b_button(11); // -
+    press_b_button(19); // pi
+    press_b_button(12); // *
+    press_b_button(19); // pi
+    
+    // "+ e * e"
+    press_b_button(10); // +
+    press_b_button(18); // e
+    press_b_button(12); // *
+    press_b_button(18); // e
+    
+    // "))"
+    press_b_button(15); // )
+    press_b_button(15); // )
+
+    // Evaluate
+    press_eval();
+    #4000; // Wait for result
+
+    // =========================================================================================
+    // PHASE 2: (1 + 1/e) * (pi + 1/pi) / (e - 1)
+    // =========================================================================================
+    
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // "(1 + 1 / e)"
+    press_b_button(14); // (
+    press_b_button(1);
+    press_b_button(10); // +
+    press_b_button(1);
+    press_b_button(13); // /
+    press_b_button(18); // e
+    press_b_button(15); // )
+
+    // " * "
+    press_b_button(12); // *
+
+    // "(pi + 1 / pi)"
+    press_b_button(14); // (
+    press_b_button(19); // pi
+    press_b_button(10); // +
+    press_b_button(1);
+    press_b_button(13); // /
+    press_b_button(19); // pi
+    press_b_button(15); // )
+
+    // " / "
+    press_b_button(13); // /
+
+    // "(e - 1)"
+    press_b_button(14); // (
+    press_b_button(18); // e
+    press_b_button(11); // -
+    press_b_button(1);
+    press_b_button(15); // )
+
+    // Evaluate
+    press_eval();
+    #4000;
+
+    // =========================================================================================
+    // PHASE 3: 1000 / (1 + (e * e * e)) + pi
+    // =========================================================================================
+
+    reset = 1'b1;
+    repeat (4) @(posedge clock);
+    reset = 1'b0;
+    repeat (2) @(posedge clock);
+
+    // "1000 /"
+    press_b_button(1); press_b_button(0); press_b_button(0); press_b_button(0);
+    press_b_button(13); // /
+
+    // "(1 + (" 
+    press_b_button(14); // (
+    press_b_button(1);
+    press_b_button(10); // +
+    press_b_button(14); // (
+    
+    // "e * e * e"
+    press_b_button(18); // e
+    press_b_button(12); // *
+    press_b_button(18); // e
+    press_b_button(12); // *
+    press_b_button(18); // e
+    
+    // "))"
+    press_b_button(15); // )
+    press_b_button(15); // )
+
+    // "+ pi"
+    press_b_button(10); // +
+    press_b_button(19); // pi
+
+    // Evaluate
+    press_eval();
+    #4000;
+    
+    $finish;
+  end
+
+endmodule

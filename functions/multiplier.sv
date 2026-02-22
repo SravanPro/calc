@@ -19,11 +19,11 @@ module multiplier(
 
     output reg signRes,
     output reg [33:0] mantRes,
-    output signed reg [6:0] expRes
+    output reg signed [6:0] expRes
 );
 
 
-    localparam [34:0] M_MAX = 68'd17179869183;
+    localparam [67:0] M_MAX = 68'd17179869183;
     reg signX = 0;
     reg signY = 0;
     reg [33:0] mantX = 0;
@@ -128,7 +128,7 @@ module multiplier(
 
                 end
 
-                S_DONE: begin // Normalizing hte intermediate regs (mant & exp)
+                S_DONE: begin
 
                     done <= 1;
                     state <= S_IDLE;
