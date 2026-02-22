@@ -77,6 +77,8 @@ module builderTB;
   wire [NEWWIDTH-1:0] memOut18 = uut.memOut[18];
   wire [NEWWIDTH-1:0] memOut19 = uut.memOut[19];
   wire [NEWWIDTH-1:0] memOut20 = uut.memOut[20];
+  
+  wire [$clog2(DEPTH+1)-1:0] newSize = uut.newSize;
 
   wire done = uut.done;
 

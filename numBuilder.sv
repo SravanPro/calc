@@ -194,6 +194,7 @@ module numBuilder #(
                     end
 
 
+
                     // Case 3: if token is an operator/func/bracket/etc
                     else begin
                         // If we were building a number, and then hit an operator, then flush number 
@@ -225,8 +226,19 @@ module numBuilder #(
                             i <= i + 1'b1;
                         end
                     end
+
+
+
+
+
+
                 end
+
+
+
+
             end
         end
     end
+
 endmodule
