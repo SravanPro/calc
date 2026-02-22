@@ -1,0 +1,231 @@
+`timescale 1ns / 1ps
+
+module numBuilder #(
+    parameter depth = 10,
+    parameter width = 8,
+    parameter newWidth = 42
+)(
+    input wire clock,
+    input wire reset,
+    input wire eval,
+
+    input wire [$clog2(depth+1)-1:0] size,
+    input wire [width-1:0] memIn [depth-1:0],
+
+    output reg [$clog2(depth+1)-1:0] newSize,
+    output reg [newWidth-1:0] memOut [depth-1:0],
+
+    output reg done //pulse
+
+);
+
+    reg evalPrevState = 0;
+    wire doEval = eval && !evalPrevState;
+
+    reg [$clog2(depth+1)-1:0] i = 0;
+
+    // number being built
+    reg sign = 0;
+    reg [33:0] mantissa = 0;
+    reg signed [6:0] exp = '0;
+    reg seenDot  = 0;
+
+    
+    reg running  = 0;  // keeps module active after doEval pulse
+    reg running_prev;
+
+    reg building = 0;  // currently inside a number token
+
+    integer k;
+
+    // helpers
+    wire isDigit = (memIn[i][7:4] == 4'h0);
+    wire isDot = (memIn[i] == 8'hDD);
+
+    wire isConst = (memIn[i][7:4] == 4'hC);
+    wire isConstE = (memIn[i] == 8'hC0);
+    wire isConstPi = (memIn[i] == 8'hC1);
+
+    always @(posedge clock) begin
+        if (reset) begin
+            for (k = 0; k < depth; k = k + 1) begin
+                memOut[k] <= '0;
+            end
+
+            done <= 1'b0;
+            running_prev <= 1'b0;
+
+            newSize <= '0;
+            i <= '0;
+            evalPrevState <= 1'b0;
+
+            sign <= 1'b0;
+            mantissa <= '0;
+            exp <= '0;
+            seenDot <= 1'b0;
+
+            running <= 1'b0;
+            building <= 1'b0;
+        end
+        else begin
+
+            done <= 1'b0;
+            running_prev <= running;
+            if (running_prev && !running) begin
+            done <= 1'b1;
+            end
+
+            evalPrevState <= eval;
+
+            // start a run on eval pulse, basically initiala setup
+            if (doEval) begin
+
+                running_prev <= 1'b0;
+                done <= 1'b0;
+
+                newSize <= '0;
+                i <= '0;
+
+                sign <= 1'b0;
+                mantissa <= '0;
+                exp <= '0;
+                seenDot <= 1'b0;
+
+                running <= 1'b1;
+                building <= 1'b0;
+            end
+            else if (running) begin
+
+                // End of input: if a number is pending, flush it, then stop.
+                if (i >= size) begin
+                    if (building && (newSize < depth)) begin
+                        memOut[newSize] <= {sign, mantissa, exp};
+                        newSize <= newSize + 1'b1;
+                    end
+
+                    // stop
+                    running  <= 1'b0;
+                    building <= 1'b0;
+
+                    // clearing builder regs
+                    sign <= 1'b0;
+                    mantissa <= '0;
+                    exp <= '0;
+                    seenDot <= 1'b0;
+                end
+                else begin
+                    // We are still consuming input tokens (one per clock)
+
+                    // Case 1: if the toke n is digit
+                    if (isDigit) begin
+                        mantissa <= (mantissa * 10) + memIn[i];   
+                        if (seenDot) exp <= exp - 1'b1;
+
+                        building <= 1'b1;
+                        i <= i + 1'b1;
+                    end
+
+                    
+                    // Case 2: if the token is a deceimal point
+                    else if (isDot) begin
+                        seenDot  <= 1'b1;
+                        building <= 1'b1;
+                        i <= i + 1'b1;
+                    end
+
+                    else if(isConst) begin
+                        // If we were building a number, and then hit a constant, then flush number, and then the constant 
+                        if (building) begin
+
+
+                            if (newSize < depth) begin //flushing number
+                                memOut[newSize] <= {sign, mantissa, exp};
+                            end
+
+                            if ((newSize + 1) < depth) begin //then flushing constant
+
+                                if(isConstE) begin
+                                    memOut[newSize + 1] <=  {1'b0, 34'd27182818285, 7'sd-10};
+                                end
+                                else if(isConstPi) begin
+                                    memOut[newSize + 1] <= {1'b0, 34'd31415926536, 7'sd-10};
+                                end
+
+                            end
+
+                            newSize <= newSize + 2; //+2 coz number, and operator, both are being flushed
+
+                            // clearing the number builder
+                            sign <= 1'b0;
+                            mantissa <= '0;
+                            exp <= '0;
+                            seenDot <= 1'b0;
+                            building <= 1'b0;
+
+                            i <= i + 1'b1;
+                        end
+
+                        else begin
+                            // if we were NOT in hte middle of building anumber, and if we hit a constanat:
+                            if (newSize < depth) begin
+                                if(isConstE) begin
+                                    memOut[newSize + 1] <=  {1'b0, 34'd27182818285, 7'sd-10};
+                                end
+                                else if(isConstPi) begin
+                                    memOut[newSize + 1] <= {1'b0, 34'd31415926536, 7'sd-10};
+                                end
+                            end
+                            newSize <= newSize + 1'b1;
+                            i <= i + 1'b1;
+                        end
+                    end
+
+
+
+                    // Case 3: if token is an operator/func/bracket/etc
+                    else begin
+                        // If we were building a number, and then hit an operator, then flush number 
+                        if (building) begin
+                            if (newSize < depth) begin
+                                memOut[newSize] <= {sign, mantissa, exp};
+                            end
+                            if ((newSize + 1) < depth) begin
+                                memOut[newSize + 1] <= {34'b0, memIn[i]}; // operator token padded
+                            end
+
+                            newSize <= newSize + 2; //+2 coz number, and operator, both are being flushed
+
+                            // clearing the number builder
+                            sign <= 1'b0;
+                            mantissa <= '0;
+                            exp <= '0;
+                            seenDot <= 1'b0;
+                            building <= 1'b0;
+
+                            i <= i + 1'b1;
+                        end
+                        else begin
+                            // if we were NOT in hte middle of building anumber, and if we hit an operator:
+                            if (newSize < depth) begin
+                                memOut[newSize] <= {34'b0, memIn[i]};
+                            end
+                            newSize <= newSize + 1'b1;
+                            i <= i + 1'b1;
+                        end
+                    end
+
+
+
+
+
+
+                end
+
+
+
+
+            end
+        end
+    end
+
+endmodule
