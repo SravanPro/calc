@@ -18,7 +18,7 @@ module parent #(
     input eval,
     
     // dummy output
-    output  wire parentOut
+    output  parentOut
     
 );
 
