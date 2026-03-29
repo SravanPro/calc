@@ -44,7 +44,7 @@ module dataStructure
     
     integer i;
 
-    always @(posedge clock) begin
+    always @(posedge clock or posedge reset) begin
         if (reset) begin
             for (i = 0; i < depth; i = i + 1) mem[i] <= 0;  
             ptr <= 0;

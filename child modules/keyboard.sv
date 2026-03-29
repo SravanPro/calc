@@ -7,33 +7,7 @@ module keyboard #(
     input clock, reset,
 
     input  [buttons - 1 : 0] b,     
-    
-    //(outdated)
-    // 0-9 : digits
-    //10, 11, 12, 13 :  add, sub, mul , div
-    //14, 15: left bracket, right bracket
-    
-    // 16: decimal point
-    // 17: e
-    // 18: pi
-    
-    // 19: e^x
-    //20: log x (base e)
-    
-    //21:  pow(x, a)
-    //22:  log(x, a)
-    
-    //23: sin
-    //24: cos
-    //25: tan
 
-    
-    
-    
-    
-    
-    
-    
     input del,
     input ptrLeft,
     input ptrRight,
@@ -157,7 +131,7 @@ localparam OP_ATAN    = 8'hFC;   // arctan(x)
         end
     end
 
-    // Sequential Block: CHANGED to "Pass-Through" logic
+    // Sequential Block
     always @(posedge clock) begin
         if (reset) begin
             insert <= 0;
@@ -169,16 +143,11 @@ localparam OP_ATAN    = 8'hFC;   // arctan(x)
         end
         else begin
             // 1. DATA PATH
-            // Just pass the key code whenever valid. 
-            // The DS module decides *when* to latch it (on the rising edge of insert).
             if (key_valid) begin
                 dataIn <= key_code;
             end
 
             // 2. CONTROL PATH
-            // Remove the edge detection here (!prev). 
-            // Just output HIGH if the button is pressed.
-            // The DS module's internal edge detector will handle the "Write Once" logic.
             
             insert <= key_valid;       // Output High as long as key is held
             del_pulse <= del;          // Output High as long as del is held
